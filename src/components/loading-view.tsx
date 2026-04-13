@@ -1,9 +1,6 @@
 export function LoadingView() {
   return (
-    <div
-      className="flex flex-col items-center"
-      style={{ padding: '24px 14px' }}
-    >
+    <div className="flex flex-col items-center" style={{ padding: '24px 14px' }}>
       {/* Pulsing dots */}
       <div className="flex" style={{ gap: '6px', marginBottom: '10px' }}>
         {[0, 1, 2].map((i) => (
@@ -20,9 +17,7 @@ export function LoadingView() {
         ))}
       </div>
 
-      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-        analyzing
-      </span>
+      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>analyzing</span>
     </div>
   )
 }

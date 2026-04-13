@@ -21,10 +21,7 @@ export function IdleView() {
   }, [])
 
   return (
-    <div
-      className="flex flex-col items-center"
-      style={{ padding: '20px 14px' }}
-    >
+    <div className="flex flex-col items-center" style={{ padding: '20px 14px' }}>
       {/* Decorative dots */}
       <div className="flex" style={{ gap: '6px', marginBottom: '14px' }}>
         {[0, 1, 2].map((i) => (

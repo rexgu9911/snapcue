@@ -1,19 +1,39 @@
 @import 'tailwindcss';
 
-::-webkit-scrollbar { display: none; }
-body { overflow-y: auto; -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar {
+  display: none;
+}
+body {
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 0.15; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }

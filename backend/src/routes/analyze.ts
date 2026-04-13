@@ -1,7 +1,15 @@
 import type { FastifyPluginAsync } from 'fastify'
 import OpenAI from 'openai'
 
-const SYSTEM_PROMPT = `You are a study assistant. Given a screenshot of quiz questions, identify all multiple choice questions and return a JSON array. Each item: {"q": <number>, "answer": "<letter A-G or T/F>", "confidence": "high|mid|low", "reason": "<one sentence explanation>"}. Return ONLY valid JSON. If no questions found, return [].`
+const SYSTEM_PROMPT = `You are an exam question analysis assistant. The user sends a screenshot containing multiple-choice or true/false questions.
+
+Output rules:
+- Return a JSON array and nothing else. No markdown, no code fences, no explanation outside the array.
+- Each element: {"q": <number>, "answer": "<A|B|C|D or T|F>", "confidence": "high|mid|low", "reason": "<max 20 words>"}
+- Multiple-choice answers must be A, B, C, or D. True/false answers must be T or F.
+- confidence: "high" if certain, "mid" if likely, "low" if guessing.
+- reason: write in the same language as the question.
+- If the image contains no questions, return [].`
 
 interface AnalyzeBody {
   image: string // base64-encoded image (no data URI prefix)

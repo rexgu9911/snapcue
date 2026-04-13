@@ -106,8 +106,20 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         className="flex items-center self-start"
         style={{ padding: '8px 10px 4px', gap: '3px' }}
       >
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ color: 'rgba(255,255,255,0.4)' }}>
-          <path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 12 12"
+          fill="none"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+        >
+          <path
+            d="M7.5 2L3.5 6L7.5 10"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>back</span>
       </button>
@@ -208,15 +220,10 @@ function ShortcutRow({
   isConflict: boolean
   onStartRecording: () => void
 }) {
-  const pillBg = isConflict
-    ? 'rgba(239,68,68,0.3)'
-    : 'rgba(255,255,255,0.06)'
+  const pillBg = isConflict ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.06)'
 
   return (
-    <div
-      className="flex items-center justify-between"
-      style={{ padding: '3px 0' }}
-    >
+    <div className="flex items-center justify-between" style={{ padding: '3px 0' }}>
       <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
       <button
         onClick={onStartRecording}
@@ -258,11 +265,15 @@ function IconPreview({ icon }: { icon: TrayIcon }) {
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color }}>
           <path
             d="M3.5 3C3.5 3 5.5 2 8 3V13C5.5 12 3.5 13 3.5 13V3Z"
-            stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeLinejoin="round"
           />
           <path
             d="M12.5 3C12.5 3 10.5 2 8 3V13C10.5 12 12.5 13 12.5 13V3Z"
-            stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeLinejoin="round"
           />
         </svg>
       )
