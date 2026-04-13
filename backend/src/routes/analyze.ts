@@ -9,6 +9,7 @@ Output rules:
 - Multiple-choice answers must be A, B, C, or D. True/false answers must be T or F.
 - confidence: "high" if certain, "mid" if likely, "low" if guessing.
 - reason: write in the same language as the question.
+- The screenshot may include browser chrome, toolbars, sidebars, or other UI elements. Ignore these — only analyze exam questions in the main content area.
 - If the image contains no questions, return [].`
 
 interface AnalyzeBody {
@@ -43,6 +44,9 @@ export const analyzeRoute: FastifyPluginAsync = async (app) => {
     const rawBase64 = image.replace(/^data:image\/\w+;base64,/, '')
     const dataUri = `data:${mediaType};base64,${rawBase64}`
 
+    const imageBytes = Buffer.from(rawBase64, 'base64').length
+    request.log.info(`[analyze] image size: ${imageBytes} bytes, media: ${mediaType}`)
+
     try {
       const response = await client.chat.completions.create({
         model: 'gpt-5-mini',
@@ -66,12 +70,15 @@ export const analyzeRoute: FastifyPluginAsync = async (app) => {
       })
 
       const text = response.choices[0]?.message?.content
+      request.log.info(`[analyze] AI raw response: ${text}`)
+
       if (!text) {
         return reply.status(502).send({ error: 'No text response from AI' })
       }
 
       // Parse and validate JSON
       const answers = parseAnswers(text)
+      request.log.info(`[analyze] parsed ${answers.length} answers`)
 
       return {
         answers,

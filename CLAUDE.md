@@ -57,6 +57,9 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - app.dock.hide() — 纯 menu bar app
 - IPC 类型定义在 shared/types.ts，main 和 renderer 共享
 - window.snapcue 作为 preload 暴露的 API 命名空间
+- ⌃⌥S 静默截图已知限制：截取的是前台窗口，可能截到非题目窗口（如 Terminal），尝试过截鼠标所在窗口和截鼠标所在显示器方案均不稳定，已回退到基础方案。⌃⌥A 区域选择是更可靠的截图方式
+- setContentProtection(true) 可用于屏幕共享隐藏，但 macOS 15 ScreenCaptureKit 和 Zoom 原生客户端可能绕过，未来如需更深层隐藏需用 Swift/Metal 原生渲染
+- ⌃⌥D toggle panel 功能已尝试并回滚，tray destroy/recreate 存在重复创建 bug，暂不实现
 
 ## UI/UX 设计规范
 
@@ -195,15 +198,15 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 4.3 ✅ 视觉重构（200px 窄 dropdown，macOS vibrancy 风格，紧凑排版）
 - 4.4 ✅ UI 状态完善（idle 空闲态快捷键提示、analyzing 脉冲动画、隐藏滚动条、页面切换 fade 动画、settings 页隐藏公共 footer）
 
+**阶段 5 — 后端功能完善（部分完成）**
+- 5.1 ✅ System prompt 优化（角色定义、JSON 输出格式、多语言 reason、忽略浏览器 UI 元素）
+- 5.2 ❌ 模型抽象层 — 跳过（YAGNI，当前只用一个模型）
+- 5.3 ❌ 流式响应 — 跳过（分析耗时短，投入产出比低）
+- 5.4 ❌ 历史记录 — 砍掉（核心场景不需要）
+
 ### ⬜ 下一步开发计划
 
 > 开发原则：先把核心体验打磨到位，再接入付费系统。
-
-**阶段 5 — 后端功能完善**
-
-- 5.1 AI 模型抽象层（支持切换 Gemini Flash / Claude Sonnet / GPT-5 mini）
-- 5.2 流式响应（后端 streaming，前端逐行显示答案）
-- 5.3 历史记录（本地存储最近 20 次分析结果，dropdown 内查看）
 
 **阶段 6 — 认证 + 付费系统**
 
