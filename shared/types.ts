@@ -2,13 +2,36 @@
 
 export type CaptureMode = 'silent' | 'region'
 
+// ── Answer ──────────────────────────────────────────────────────────────────
+
+export interface AnswerItem {
+  q: number
+  answer: string
+  confidence: 'high' | 'mid' | 'low'
+  reason: string
+}
+
+// ── Error ───────────────────────────────────────────────────────────────────
+
+export type ErrorType = 'network_error' | 'timeout' | 'no_questions' | 'parse_error' | 'unknown'
+
+export interface CaptureError {
+  type: ErrorType
+  message: string
+  /** Whether a cached screenshot is available for retry */
+  canRetry: boolean
+}
+
 // ── Settings ─────────────────────────────────────────────────────────────────
+
+export type TrayIcon = 'dot' | 'book' | 'bolt' | 'square'
 
 export interface AppSettings {
   hotkeys: {
     silentCapture: string
     regionSelect: string
   }
+  trayIcon: TrayIcon
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -16,6 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     silentCapture: 'Control+Alt+S',
     regionSelect: 'Control+Alt+A',
   },
+  trayIcon: 'dot',
 }
 
 // ── IPC Channel Definitions ──────────────────────────────────────────────────
@@ -29,8 +53,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
  */
 export interface MainToRendererEvents {
   'capture:loading': void
-  'capture:result': string
-  'capture:error': string
+  'capture:result': AnswerItem[]
+  'capture:error': CaptureError
   'credits:update': number
   'permission:status': boolean
 }
@@ -50,6 +74,7 @@ export interface RendererToMainEvents {
  */
 export interface RendererToMainCommands {
   'capture:start': { args: CaptureMode; return: void }
+  'capture:retry': { args: void; return: void }
   'settings:get': { args: void; return: AppSettings }
   'settings:set': { args: Partial<AppSettings>; return: void }
   'permission:openSettings': { args: void; return: void }
@@ -73,6 +98,7 @@ export const IPC = {
 
   // Renderer → Main (invoke)
   CAPTURE_START: 'capture:start',
+  CAPTURE_RETRY: 'capture:retry',
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   PERMISSION_OPEN_SETTINGS: 'permission:openSettings',

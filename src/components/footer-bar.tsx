@@ -4,55 +4,38 @@ interface FooterBarProps {
 
 export function FooterBar({ onOpenSettings }: FooterBarProps) {
   return (
-    <div className="flex h-9 shrink-0 items-center justify-between border-t border-white/10 px-3">
-      {/* Credits */}
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-green-400">●</span>
-        <span className="text-xs text-white/50">10 credits</span>
-      </div>
+    <div
+      className="flex shrink-0 items-center justify-between"
+      style={{
+        padding: '5px 10px',
+        borderTop: '0.5px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      {/* Credits — number only */}
+      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>10</span>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        {/* Settings */}
-        <button
-          onClick={onOpenSettings}
-          className="group flex h-6 w-6 items-center justify-center rounded"
-          aria-label="Settings"
+      {/* Settings gear */}
+      <button
+        onClick={onOpenSettings}
+        className="flex items-center justify-center"
+        style={{ width: '16px', height: '16px' }}
+        aria-label="Settings"
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 16 16"
+          fill="none"
+          style={{ color: 'rgba(255,255,255,0.25)' }}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="text-white/50 transition-colors group-hover:text-white"
-          >
-            <path
-              d="M6.5 1.75a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v.3a5.52 5.52 0 0 1 1.56.64l.21-.21a.75.75 0 0 1 1.06 0l1.06 1.06a.75.75 0 0 1 0 1.06l-.21.21c.27.49.49 1.01.64 1.56h.3a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-.75.75h-.3a5.52 5.52 0 0 1-.64 1.56l.21.21a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 0 1-1.06 0l-.21-.21a5.52 5.52 0 0 1-1.56.64v.3a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1-.75-.75v-.3a5.52 5.52 0 0 1-1.56-.64l-.21.21a.75.75 0 0 1-1.06 0L2.61 12.3a.75.75 0 0 1 0-1.06l.21-.21a5.52 5.52 0 0 1-.64-1.56h-.3a.75.75 0 0 1-.75-.75v-1.5a.75.75 0 0 1 .75-.75h.3c.15-.55.37-1.07.64-1.56l-.21-.21a.75.75 0 0 1 0-1.06L3.67 2.58a.75.75 0 0 1 1.06 0l.21.21A5.52 5.52 0 0 1 6.5 2.15v-.4ZM8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"
-              fill="currentColor"
-            />
-          </svg>
-        </button>
-
-        {/* Quit */}
-        <button
-          onClick={() => window.snapcue.quit()}
-          className="group flex h-6 w-6 items-center justify-center rounded"
-          aria-label="Quit"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="text-white/50 transition-colors group-hover:text-white"
-          >
-            <path
-              d="M4.11 4.11a.75.75 0 0 1 1.06 0L8 6.94l2.83-2.83a.75.75 0 1 1 1.06 1.06L9.06 8l2.83 2.83a.75.75 0 1 1-1.06 1.06L8 9.06l-2.83 2.83a.75.75 0 0 1-1.06-1.06L6.94 8 4.11 5.17a.75.75 0 0 1 0-1.06Z"
-              fill="currentColor"
-            />
-          </svg>
-        </button>
-      </div>
+          <path
+            d="M7.07 1.5A.93.93 0 0 1 8 .57h0a.93.93 0 0 1 .93.93v.63a5.08 5.08 0 0 1 1.71.71l.44-.44a.93.93 0 0 1 1.32 0h0a.93.93 0 0 1 0 1.32l-.44.44c.3.52.54 1.1.71 1.71h.63a.93.93 0 0 1 .93.93h0a.93.93 0 0 1-.93.93h-.63a5.08 5.08 0 0 1-.71 1.71l.44.44a.93.93 0 0 1 0 1.32h0a.93.93 0 0 1-1.32 0l-.44-.44a5.08 5.08 0 0 1-1.71.71v.63a.93.93 0 0 1-.93.93h0a.93.93 0 0 1-.93-.93v-.63a5.08 5.08 0 0 1-1.71-.71l-.44.44a.93.93 0 0 1-1.32 0h0a.93.93 0 0 1 0-1.32l.44-.44a5.08 5.08 0 0 1-.71-1.71H2.7a.93.93 0 0 1-.93-.93h0a.93.93 0 0 1 .93-.93h.63a5.08 5.08 0 0 1 .71-1.71l-.44-.44a.93.93 0 0 1 0-1.32h0a.93.93 0 0 1 1.32 0l.44.44A5.08 5.08 0 0 1 7.07 2.13V1.5ZM8 10.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
     </div>
   )
 }

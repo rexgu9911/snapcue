@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, type CaptureMode, type AppSettings } from '../shared/types'
+import { IPC, type CaptureMode, type AppSettings, type AnswerItem, type CaptureError } from '../shared/types'
 
 contextBridge.exposeInMainWorld('snapcue', {
   platform: process.platform,
@@ -16,16 +16,17 @@ contextBridge.exposeInMainWorld('snapcue', {
     ipcRenderer.on(IPC.CAPTURE_LOADING, listener)
     return () => ipcRenderer.removeListener(IPC.CAPTURE_LOADING, listener)
   },
-  onCaptureResult: (cb: (answer: string) => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, answer: string) => cb(answer)
+  onCaptureResult: (cb: (answers: AnswerItem[]) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, answers: AnswerItem[]) => cb(answers)
     ipcRenderer.on(IPC.CAPTURE_RESULT, listener)
     return () => ipcRenderer.removeListener(IPC.CAPTURE_RESULT, listener)
   },
-  onCaptureError: (cb: (message: string) => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, message: string) => cb(message)
+  onCaptureError: (cb: (error: CaptureError) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, error: CaptureError) => cb(error)
     ipcRenderer.on(IPC.CAPTURE_ERROR, listener)
     return () => ipcRenderer.removeListener(IPC.CAPTURE_ERROR, listener)
   },
+  retryCapture: () => ipcRenderer.invoke(IPC.CAPTURE_RETRY),
 
   // ── Credits ──────────────────────────────────────────────────────────────
   onCreditsUpdate: (cb: (balance: number) => void) => {

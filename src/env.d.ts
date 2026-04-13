@@ -3,6 +3,10 @@
 // Use import() to keep this file as an ambient declaration (not a module)
 type CaptureMode = import('../shared/types').CaptureMode
 type AppSettings = import('../shared/types').AppSettings
+type AnswerItem = import('../shared/types').AnswerItem
+type CaptureError = import('../shared/types').CaptureError
+type ErrorType = import('../shared/types').ErrorType
+type TrayIcon = import('../shared/types').TrayIcon
 
 interface SnapCueAPI {
   platform: string
@@ -14,8 +18,9 @@ interface SnapCueAPI {
   // Capture
   startCapture: (mode: CaptureMode) => Promise<void>
   onCaptureLoading: (cb: () => void) => () => void
-  onCaptureResult: (cb: (answer: string) => void) => () => void
-  onCaptureError: (cb: (message: string) => void) => () => void
+  onCaptureResult: (cb: (answers: AnswerItem[]) => void) => () => void
+  onCaptureError: (cb: (error: CaptureError) => void) => () => void
+  retryCapture: () => Promise<void>
 
   // Credits
   onCreditsUpdate: (cb: (balance: number) => void) => () => void

@@ -1,20 +1,19 @@
-import { app, BrowserWindow, Tray, nativeImage, screen, ipcMain } from 'electron'
+import { app, BrowserWindow, Tray, screen, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { IPC, type MainToRendererEvents } from '../shared/types'
+import { IPC, type MainToRendererEvents, type TrayIcon } from '../shared/types'
+import { getTrayIcon } from './tray-icons'
 
 let tray: Tray | null = null
 let dropdown: BrowserWindow | null = null
 let lastHideTime = 0
 
-const DROPDOWN_WIDTH = 280
-const DROPDOWN_MIN_HEIGHT = 48
+const DROPDOWN_WIDTH = 200
+const DROPDOWN_MIN_HEIGHT = 36
 const DROPDOWN_MAX_HEIGHT = 400
 
-function createTrayIcon(): Tray {
-  const iconPath = join(__dirname, '../../resources/iconTemplate.png')
-  const icon = nativeImage.createFromPath(iconPath)
-  icon.setTemplateImage(true)
+async function createTrayWithIcon(iconName: TrayIcon): Promise<Tray> {
+  const icon = await getTrayIcon(iconName)
 
   const newTray = new Tray(icon)
   newTray.setToolTip('SnapCue')
@@ -33,6 +32,12 @@ function createTrayIcon(): Tray {
   })
 
   return newTray
+}
+
+export async function updateTrayIcon(name: TrayIcon): Promise<void> {
+  if (!tray) return
+  const icon = await getTrayIcon(name)
+  tray.setImage(icon)
 }
 
 function createDropdown(): BrowserWindow {
@@ -107,22 +112,23 @@ function resizeDropdown(contentHeight: number): void {
     DROPDOWN_MIN_HEIGHT,
     Math.min(Math.ceil(contentHeight), DROPDOWN_MAX_HEIGHT),
   )
-  const [width] = dropdown.getSize()
+  const [width, currentHeight] = dropdown.getSize()
+  // Skip resize if difference is negligible — prevents resize loop
+  if (Math.abs(clamped - currentHeight) < 3) return
   dropdown.setSize(width, clamped)
 }
 
-/** Send a typed event to the dropdown renderer and show it. */
+/** Send a typed event to the dropdown renderer (never auto-shows). */
 export function sendToDropdown<C extends keyof MainToRendererEvents>(
   channel: C,
   ...args: MainToRendererEvents[C] extends void ? [] : [MainToRendererEvents[C]]
 ): void {
   if (!dropdown) return
   dropdown.webContents.send(channel, ...args)
-  showDropdown()
 }
 
-export function initTray(): void {
-  tray = createTrayIcon()
+export async function initTray(iconName: TrayIcon = 'dot'): Promise<void> {
+  tray = await createTrayWithIcon(iconName)
   dropdown = createDropdown()
 
   // Renderer → Main (fire-and-forget)

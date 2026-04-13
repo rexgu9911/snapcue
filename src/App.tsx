@@ -4,14 +4,45 @@ import { AnswerPanel } from './answer-panel'
 import { PermissionGuide } from './components/permission-guide'
 import { FooterBar } from './components/footer-bar'
 import { SettingsView } from './components/settings-view'
+import { IdleView } from './components/idle-view'
+import { LoadingView } from './components/loading-view'
 
 type Status = 'ready' | 'loading' | 'result' | 'error' | 'no-permission'
 type View = 'main' | 'settings'
 
+function ErrorPanel({ error }: { error: CaptureError }) {
+  return (
+    <div style={{ padding: '8px 10px' }}>
+      <p style={{ fontSize: '11px', lineHeight: 1.45, color: 'rgba(255,255,255,0.35)' }}>
+        {error.message}
+      </p>
+      {error.canRetry && (
+        <button
+          onClick={() => window.snapcue.retryCapture()}
+          className="w-full transition-colors"
+          style={{
+            marginTop: '6px',
+            padding: '3px 0',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.5)',
+            background: 'rgba(255,255,255,0.06)',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function App() {
   const [status, setStatus] = useState<Status>('ready')
-  const [errorMsg, setErrorMsg] = useState('')
-  const [answer, setAnswer] = useState('')
+  const [error, setError] = useState<CaptureError | null>(null)
+  const [answers, setAnswers] = useState<AnswerItem[]>([])
   const [view, setView] = useState<View>('main')
   const containerRef = useAutoHeight<HTMLDivElement>()
 
@@ -37,57 +68,54 @@ export function App() {
       window.snapcue.onCaptureLoading(() => {
         setView('main')
         setStatus('loading')
-        setErrorMsg('')
-        setAnswer('')
+        setError(null)
+        setAnswers([])
       }),
-      window.snapcue.onCaptureError((message) => {
+      window.snapcue.onCaptureError((err) => {
         setStatus('error')
-        setErrorMsg(message)
+        setError(err)
       }),
-      window.snapcue.onCaptureResult((text) => {
+      window.snapcue.onCaptureResult((items) => {
         setStatus('result')
-        setAnswer(text)
+        setAnswers(items)
       }),
     ]
     return () => unsubs.forEach((fn) => fn())
   }, [])
 
   return (
-    <div ref={containerRef} className="flex flex-col rounded-xl">
+    <div
+      ref={containerRef}
+      className="flex flex-col"
+      style={{
+        background: 'rgba(30,30,30,0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: '8px',
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
       {/* Content area */}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1" key={view} style={{ animation: 'fadeIn 150ms ease' }}>
         {view === 'settings' ? (
           <SettingsView onBack={() => setView('main')} />
         ) : (
           <>
-            {status === 'ready' && (
-              <div className="flex items-center justify-center px-4 py-4">
-                <p className="text-sm font-medium text-white/70">SnapCue Ready</p>
-              </div>
-            )}
+            {status === 'ready' && <IdleView />}
 
             {status === 'no-permission' && <PermissionGuide />}
 
-            {status === 'loading' && (
-              <div className="flex items-center gap-3 px-4 py-4">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
-                <p className="text-sm font-medium text-white/70">Analyzing...</p>
-              </div>
-            )}
+            {status === 'loading' && <LoadingView />}
 
-            {status === 'result' && <AnswerPanel answer={answer} />}
+            {status === 'result' && <AnswerPanel answers={answers} />}
 
-            {status === 'error' && (
-              <div className="px-4 py-4">
-                <p className="text-sm font-medium text-red-400">{errorMsg}</p>
-              </div>
-            )}
+            {status === 'error' && error && <ErrorPanel error={error} />}
           </>
         )}
       </div>
 
-      {/* Footer — always visible */}
-      <FooterBar onOpenSettings={() => setView('settings')} />
+      {/* Footer — only on main view */}
+      {view !== 'settings' && <FooterBar onOpenSettings={() => setView('settings')} />}
     </div>
   )
 }
