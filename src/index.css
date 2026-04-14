@@ -73,15 +73,14 @@ body {
     opacity: 1;
     transform: scale(1);
   }
-  26% {
+  26%,
+  100% {
     opacity: 0;
     transform: scale(1);
   }
-  100% {
-    opacity: 0;
-  }
 }
 
+/* Particle 1: arcs upward */
 @keyframes onb-particle-1 {
   0%,
   26% {
@@ -90,26 +89,24 @@ body {
   }
   31% {
     opacity: 0.7;
-    transform: translate(12px, -6px);
+    transform: translate(5px, -6px);
   }
   44% {
     opacity: 0.5;
-    transform: translate(56px, -20px);
+    transform: translate(23px, -18px);
   }
   54% {
     opacity: 0.2;
-    transform: translate(96px, -12px);
+    transform: translate(38px, -10px);
   }
-  58% {
-    opacity: 0;
-    transform: translate(112px, -4px);
-  }
+  58%,
   100% {
     opacity: 0;
-    transform: translate(112px, -4px);
+    transform: translate(46px, -2px);
   }
 }
 
+/* Particle 2: flies roughly straight */
 @keyframes onb-particle-2 {
   0%,
   28% {
@@ -118,26 +115,24 @@ body {
   }
   34% {
     opacity: 0.5;
-    transform: translate(16px, 2px);
+    transform: translate(6px, 2px);
   }
   46% {
     opacity: 0.4;
-    transform: translate(60px, 4px);
+    transform: translate(24px, 3px);
   }
   56% {
     opacity: 0.15;
-    transform: translate(100px, 2px);
+    transform: translate(40px, 1px);
   }
-  60% {
-    opacity: 0;
-    transform: translate(116px, 0);
-  }
+  60%,
   100% {
     opacity: 0;
-    transform: translate(116px, 0);
+    transform: translate(46px, 0);
   }
 }
 
+/* Particle 3: arcs downward */
 @keyframes onb-particle-3 {
   0%,
   30% {
@@ -146,23 +141,20 @@ body {
   }
   36% {
     opacity: 0.6;
-    transform: translate(14px, 8px);
+    transform: translate(6px, 8px);
   }
   48% {
     opacity: 0.4;
-    transform: translate(54px, 18px);
+    transform: translate(22px, 16px);
   }
   57% {
     opacity: 0.15;
-    transform: translate(94px, 10px);
+    transform: translate(38px, 8px);
   }
-  62% {
-    opacity: 0;
-    transform: translate(110px, 4px);
-  }
+  62%,
   100% {
     opacity: 0;
-    transform: translate(110px, 4px);
+    transform: translate(46px, 2px);
   }
 }
 
@@ -170,22 +162,24 @@ body {
   0%,
   56% {
     opacity: 0;
+    visibility: hidden;
     transform: translateY(-4px);
   }
   63% {
     opacity: 1;
+    visibility: visible;
     transform: translateY(0);
   }
   90% {
     opacity: 1;
+    visibility: visible;
     transform: translateY(0);
   }
-  96% {
-    opacity: 0;
-    transform: translateY(0);
-  }
+  96%,
   100% {
     opacity: 0;
+    visibility: hidden;
+    transform: translateY(0);
   }
 }
 
