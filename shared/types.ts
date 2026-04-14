@@ -24,7 +24,7 @@ export interface CaptureError {
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
-export type TrayIcon = 'dot' | 'book' | 'bolt' | 'square'
+export type TrayIcon = 'dot' | 'book' | 'bolt' | 'square' | 'input' | 'shield' | 'cn' | 'ghost'
 
 export interface AppSettings {
   hotkeys: {

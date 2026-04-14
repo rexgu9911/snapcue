@@ -21,6 +21,25 @@ const SVGS: Record<TrayIcon, string> = {
   square: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
     <rect x="6.5" y="6.5" width="9" height="9" rx="2" stroke="black" stroke-width="1.5" fill="none"/>
   </svg>`,
+
+  input: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="5" y="5" width="12" height="12" rx="2" stroke="black" stroke-width="1.2" fill="none"/>
+    <text x="11" y="15" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="600" fill="black">A</text>
+  </svg>`,
+
+  shield: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11 3C8 5 5 5 5 5C5 5 5 12 11 19C17 12 17 5 17 5C17 5 14 5 11 3Z" stroke="black" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
+  </svg>`,
+
+  cn: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <text x="11" y="16" text-anchor="middle" font-family="PingFang SC, SF Pro SC, sans-serif" font-size="14" font-weight="500" fill="black">中</text>
+  </svg>`,
+
+  ghost: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7 18L8.5 16L11 18L13.5 16L15 18V10C15 7.2 13.2 4 11 4C8.8 4 7 7.2 7 10V18Z" stroke="black" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
+    <circle cx="9.5" cy="10" r="1" fill="black"/>
+    <circle cx="12.5" cy="10" r="1" fill="black"/>
+  </svg>`,
 }
 
 /** SVGs with lowered opacity for the "analyzing" state (dimmed icon). */
@@ -42,6 +61,29 @@ const ANALYZING_SVGS: Record<TrayIcon, string> = {
 
   square: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
     <rect x="6.5" y="6.5" width="9" height="9" rx="2" stroke="black" stroke-width="1.5" fill="none" opacity="0.35"/>
+  </svg>`,
+
+  input: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <g opacity="0.35">
+      <rect x="5" y="5" width="12" height="12" rx="2" stroke="black" stroke-width="1.2" fill="none"/>
+      <text x="11" y="15" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="600" fill="black">A</text>
+    </g>
+  </svg>`,
+
+  shield: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11 3C8 5 5 5 5 5C5 5 5 12 11 19C17 12 17 5 17 5C17 5 14 5 11 3Z" stroke="black" stroke-width="1.2" fill="none" stroke-linejoin="round" opacity="0.35"/>
+  </svg>`,
+
+  cn: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <text x="11" y="16" text-anchor="middle" font-family="PingFang SC, SF Pro SC, sans-serif" font-size="14" font-weight="500" fill="black" opacity="0.35">中</text>
+  </svg>`,
+
+  ghost: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+    <g opacity="0.35">
+      <path d="M7 18L8.5 16L11 18L13.5 16L15 18V10C15 7.2 13.2 4 11 4C8.8 4 7 7.2 7 10V18Z" stroke="black" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
+      <circle cx="9.5" cy="10" r="1" fill="black"/>
+      <circle cx="12.5" cy="10" r="1" fill="black"/>
+    </g>
   </svg>`,
 }
 

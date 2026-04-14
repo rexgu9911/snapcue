@@ -55,7 +55,8 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 快捷键默认 ⌃⌥S（静默）/ ⌃⌥A（区域）/ ⌃⌥D（toggle dropdown），用户可在 Settings 页自定义，持久化到 JSON 文件
 - Dropdown 用户主动 dismiss（click outside / Esc / 切换 app）
 - 设置持久化用 app.getPath('userData')/settings.json，无额外 npm 依赖
-- Tray icon 支持 4 种样式（dot/book/bolt/square），通过 SVG→sharp→nativeImage 动态生成
+- Tray icon 支持 8 种样式（dot/book/bolt/square/input/shield/cn/ghost），通过 SVG→sharp→nativeImage 动态生成
+- 截图只存内存（lastScreenshot 变量），不写磁盘，下次截图覆盖，app 退出即丢弃
 - Tray icon 状态反馈：idle（正常）→ analyzing（降低 opacity 变暗淡）→ done（恢复正常，3 秒后回到 idle）
 - app.dock.hide() — 纯 menu bar app（onboarding 期间临时显示 dock）
 - IPC 类型定义在 shared/types.ts，main 和 renderer 共享
@@ -104,7 +105,10 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 **正常态**（hasFirstCapture 为 true）：
 - 三个装饰圆点（5px，`rgba(255,255,255,0.15)`，横排 gap 6px）
-- 下方三行快捷键提示（silent / select / toggle，从 DEFAULT_SETTINGS 初始化 + settings:get 动态更新），11px monospace，`rgba(255,255,255,0.25)`
+- 主快捷键用 key cap 风格展示：[⌃ ctrl] [⌥ opt] [A]，修饰键 44px 双行（符号+文字），字母键 28px 单行，圆角 5px，立体边框
+- 下方 "area select" 标签，9px
+- 分隔线后用 9px monospace 列出 ⌃⌥S silent capture 和 ⌃⌥D show / hide
+- 所有快捷键从 settings 动态读取
 - 居中布局，padding `16px 12px`
 
 ### Analyzing 加载态
@@ -250,6 +254,8 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 4.9.3 ✅ ⌃⌥D toggle dropdown 快捷键（直接 show/hide dropdown BrowserWindow，不操作 tray，Settings 可自定义，三键冲突检测）
 - 4.9.4 ✅ 主面板 footer 增加 Quit 按钮（齿轮右侧）
 - 4.9.5 ✅ System prompt 优化（"most likely answers"、reason 1-2 句、支持非选择题返回 "—"）
+- 4.9.6 ✅ Idle view key cap 重设计（主快捷键用键盘按键视觉风格展示，次要快捷键简化文字）
+- 4.9.7 ✅ Tray icon 扩展至 8 种（新增 input/shield/cn/ghost）
 
 **阶段 5 — 后端功能完善（部分完成）**
 

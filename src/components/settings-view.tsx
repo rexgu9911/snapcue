@@ -50,7 +50,7 @@ function eventToAccelerator(e: KeyboardEvent): string | null {
   return parts.join('+')
 }
 
-const ICON_OPTIONS: TrayIcon[] = ['dot', 'book', 'bolt', 'square']
+const ICON_OPTIONS: TrayIcon[] = ['dot', 'book', 'bolt', 'square', 'input', 'shield', 'cn', 'ghost']
 
 export function SettingsView({ onBack }: SettingsViewProps) {
   const [hotkeys, setHotkeys] = useState({ silentCapture: '', regionSelect: '', toggleDropdown: '' })
@@ -208,7 +208,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         >
           Icon
         </div>
-        <div className="flex" style={{ gap: '4px' }}>
+        <div className="flex flex-wrap" style={{ gap: '4px' }}>
           {ICON_OPTIONS.map((icon) => (
             <button
               key={icon}
@@ -349,6 +349,61 @@ function IconPreview({ icon }: { icon: TrayIcon }) {
             display: 'block',
           }}
         />
+      )
+    case 'input':
+      return (
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color }}>
+          <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.1" />
+          <text
+            x="8"
+            y="11.5"
+            textAnchor="middle"
+            fontFamily="Helvetica, Arial, sans-serif"
+            fontSize="8"
+            fontWeight="600"
+            fill="currentColor"
+          >
+            A
+          </text>
+        </svg>
+      )
+    case 'shield':
+      return (
+        <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style={{ color }}>
+          <path
+            d="M6 2C4 3.5 2 3.5 2 3.5C2 3.5 2 9 6 14C10 9 10 3.5 10 3.5C10 3.5 8 3.5 6 2Z"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    case 'cn':
+      return (
+        <span
+          style={{
+            fontSize: '12px',
+            fontFamily: '"PingFang SC", "SF Pro SC", sans-serif',
+            fontWeight: 500,
+            color,
+            lineHeight: 1,
+          }}
+        >
+          中
+        </span>
+      )
+    case 'ghost':
+      return (
+        <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style={{ color }}>
+          <path
+            d="M3 14L4.2 12.5L6 14L7.8 12.5L9 14V8C9 5.8 7.7 3 6 3C4.3 3 3 5.8 3 8V14Z"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeLinejoin="round"
+          />
+          <circle cx="4.8" cy="8" r="0.8" fill="currentColor" />
+          <circle cx="7.2" cy="8" r="0.8" fill="currentColor" />
+        </svg>
       )
   }
 }
