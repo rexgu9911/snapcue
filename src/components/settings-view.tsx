@@ -4,7 +4,7 @@ interface SettingsViewProps {
   onBack: () => void
 }
 
-type RecordingField = 'silentCapture' | 'regionSelect' | null
+type RecordingField = 'silentCapture' | 'regionSelect' | 'toggleDropdown' | null
 
 /** Format Electron accelerator string for display: Control+Alt+S → ⌃⌥S */
 function formatShortcut(accel: string): string {
@@ -53,7 +53,7 @@ function eventToAccelerator(e: KeyboardEvent): string | null {
 const ICON_OPTIONS: TrayIcon[] = ['dot', 'book', 'bolt', 'square']
 
 export function SettingsView({ onBack }: SettingsViewProps) {
-  const [hotkeys, setHotkeys] = useState({ silentCapture: '', regionSelect: '' })
+  const [hotkeys, setHotkeys] = useState({ silentCapture: '', regionSelect: '', toggleDropdown: '' })
   const [trayIcon, setTrayIcon] = useState<TrayIcon>('dot')
   const [recording, setRecording] = useState<RecordingField>(null)
   const [conflict, setConflict] = useState<RecordingField>(null)
@@ -84,9 +84,11 @@ export function SettingsView({ onBack }: SettingsViewProps) {
       const accel = eventToAccelerator(e)
       if (!accel) return
 
-      // Conflict check: see if the other field has the same shortcut
-      const otherField = recording === 'silentCapture' ? 'regionSelect' : 'silentCapture'
-      if (hotkeys[otherField] === accel) {
+      // Conflict check: see if any other field has the same shortcut
+      const otherFields = (['silentCapture', 'regionSelect', 'toggleDropdown'] as const).filter(
+        (f) => f !== recording,
+      )
+      if (otherFields.some((f) => hotkeys[f] === accel)) {
         setConflict(recording)
         setTimeout(() => setConflict(null), 600)
         setRecording(null)
@@ -181,6 +183,14 @@ export function SettingsView({ onBack }: SettingsViewProps) {
           isConflict={conflict === 'regionSelect'}
           isSaved={saved === 'regionSelect'}
           onStartRecording={() => setRecording('regionSelect')}
+        />
+        <ShortcutRow
+          label="Toggle answers"
+          value={hotkeys.toggleDropdown}
+          isRecording={recording === 'toggleDropdown'}
+          isConflict={conflict === 'toggleDropdown'}
+          isSaved={saved === 'toggleDropdown'}
+          onStartRecording={() => setRecording('toggleDropdown')}
         />
       </div>
 

@@ -159,6 +159,15 @@ export function sendToDropdown<C extends keyof MainToRendererEvents>(
   dropdown.webContents.send(channel, ...args)
 }
 
+export function toggleDropdown(): void {
+  if (!dropdown) return
+  if (dropdown.isVisible()) {
+    hideDropdown()
+  } else {
+    showDropdown()
+  }
+}
+
 export async function initTray(iconName: TrayIcon = 'dot'): Promise<void> {
   currentIconName = iconName
   tray = await createTrayWithIcon(iconName)

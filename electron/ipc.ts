@@ -7,8 +7,8 @@ import {
   type CaptureError,
   type ErrorType,
 } from '../shared/types'
-import { sendToDropdown, updateTrayIcon, setTrayState } from './tray'
-import { closeOnboardingWindow } from './onboarding'
+import { sendToDropdown, updateTrayIcon, setTrayState, toggleDropdown } from './tray'
+import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 
@@ -101,6 +101,14 @@ function registerShortcuts(): void {
   } catch (err) {
     console.error('[SnapCue] Failed to register regionSelect shortcut:', err)
   }
+  try {
+    globalShortcut.register(settings.hotkeys.toggleDropdown, () => {
+      if (isOnboardingOpen()) return
+      toggleDropdown()
+    })
+  } catch (err) {
+    console.error('[SnapCue] Failed to register toggleDropdown shortcut:', err)
+  }
 }
 
 function applySettingsChange(partial: Partial<AppSettings>): void {
@@ -138,13 +146,18 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
       const error: CaptureError = {
         type: 'no_questions',
         message: 'No quiz questions detected in the screenshot.',
-        canRetry: true,
+        canRetry: false,
       }
       sendToDropdown(IPC.CAPTURE_ERROR, error)
       return
     }
 
     sendToDropdown(IPC.CAPTURE_RESULT, result)
+
+    // Mark first successful capture
+    if (!settings.hasFirstCapture) {
+      applySettingsChange({ hasFirstCapture: true })
+    }
   } catch (err) {
     const { type, message } = classifyError(err)
     const error: CaptureError = { type, message, canRetry: true }

@@ -30,15 +30,18 @@ export interface AppSettings {
   hotkeys: {
     silentCapture: string
     regionSelect: string
+    toggleDropdown: string
   }
   trayIcon: TrayIcon
   hasOnboarded: boolean
+  hasFirstCapture?: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   hotkeys: {
     silentCapture: 'Control+Alt+S',
     regionSelect: 'Control+Alt+A',
+    toggleDropdown: 'Control+Alt+D',
   },
   trayIcon: 'dot',
   hasOnboarded: false,

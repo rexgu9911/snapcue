@@ -52,7 +52,7 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - API 超时 30 秒（GPT-5 mini 有推理过程，需要更多时间）
 - 隐蔽模式：截图+分析全程静默，dropdown 永不自动弹出，仅点击 tray icon 主动查看结果
 - 截图失败/用户取消区域选择时静默忽略，不弹出任何 UI
-- 快捷键默认 ⌃⌥S（静默）/ ⌃⌥A（区域），用户可在 Settings 页自定义，持久化到 JSON 文件
+- 快捷键默认 ⌃⌥S（静默）/ ⌃⌥A（区域）/ ⌃⌥D（toggle dropdown），用户可在 Settings 页自定义，持久化到 JSON 文件
 - Dropdown 用户主动 dismiss（click outside / Esc / 切换 app）
 - 设置持久化用 app.getPath('userData')/settings.json，无额外 npm 依赖
 - Tray icon 支持 4 种样式（dot/book/bolt/square），通过 SVG→sharp→nativeImage 动态生成
@@ -64,7 +64,7 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 权限检测使用 systemPreferences.getMediaAccessStatus('screen')，但 macOS 15 开发模式下不可靠（总是返回 granted），onboarding 中不做检测，永远显示引导
 - ⌃��S 静默截图已知限制：截取的是前台窗口，可能截到非题目窗口（如 Terminal），尝试过截鼠标所在窗口和截鼠标所在显示器方案均不稳定，已回退到基础方案。⌃⌥A 区域选择是更可靠的截图方式
 - setContentProtection(true) 可用于屏幕共享隐藏，但 macOS 15 ScreenCaptureKit 和 Zoom 原生客户端可能绕过，未来如需更深层隐藏需用 Swift/Metal 原生渲染
-- ⌃⌥D toggle panel 功能已尝试并回滚，tray destroy/recreate 存在重复创建 bug，暂不实现
+- ⌃⌥D toggle dropdown 已重新实现：直接对 dropdown BrowserWindow 做 show/hide，不操作 tray，避开之前 tray destroy/recreate 的 bug
 - Onboarding 不做权限检测，永远显示引导页（首次安装用户 99% 没有授权，且 macOS 15 检测 API 不可靠）
 - Onboarding 完成标记仅在用户点击 "Continue" 时写入，点击 "Open System Settings" 不标记（防止 macOS 强制重启后用户看不到任何窗口）
 
@@ -97,8 +97,14 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 ### Idle 空闲态
 
+**首次使用态**（hasFirstCapture 为 false）：
+- "ready to go"，13px，font-weight 500，`rgba(255,255,255,0.6)`
+- "open a question and press ⌃⌥A"（读取用户实际设置的快捷键），11px，`rgba(255,255,255,0.3)`
+- 首次截图分析成功后自动切换到正常态，hasFirstCapture 持久化到 settings.json
+
+**正常态**（hasFirstCapture 为 true）：
 - 三个装饰圆点（5px，`rgba(255,255,255,0.15)`，横排 gap 6px）
-- 下方两行快捷键提示（从 DEFAULT_SETTINGS 初始化 + settings:get 动态更新），11px monospace，`rgba(255,255,255,0.25)`
+- 下方三行快捷键提示（silent / select / toggle，从 DEFAULT_SETTINGS 初始化 + settings:get 动态更新），11px monospace，`rgba(255,255,255,0.25)`
 - 居中布局，padding `16px 12px`
 
 ### Analyzing 加载态
@@ -137,16 +143,17 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 错误类型：network_error / timeout / no_questions / parse_error / unknown
 - Retry 按钮：全宽，`rgba(255,255,255,0.06)` 背景，11px，border-radius 4px，padding `4px 0`
 - 复用缓存截图重试，无需重新截图
+- no_questions 不显示 Retry（同一张图重试结果相同，浪费 token），改为提示 "try ⌃⌥A to select the question area"
 
 ### Dropdown Footer（主面板）
 
 ```
-                            ⚙
+                        ⚙  Quit
 ```
 
 - 左侧预留未来 credits 显示（当前为空）
 - 右侧齿轮 SVG stroke icon，13px，`rgba(255,255,255,0.25)` → hover `rgba(255,255,255,0.5)`
-- 无 ✕ 关闭按钮（Quit 移到设置页）
+- 右侧 Quit 文字按钮（齿轮右边），11px，`rgba(255,255,255,0.2)` → hover `rgba(255,255,255,0.5)`
 - padding `4px 10px`，顶部边线 `0.5px solid rgba(255,255,255,0.06)`
 - Settings 页面时隐藏此 footer（settings 有自己的底栏）
 
@@ -159,7 +166,7 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 **SHORTCUTS 区块**：
 
 - section 标题 "SHORTCUTS"，11px uppercase，letter-spacing 0.5px，`rgba(255,255,255,0.3)`
-- 两行 flex space-between：左侧 label 11px `rgba(255,255,255,0.6)`，右侧快捷键 pill（`rgba(255,255,255,0.06)` 背景，padding `2px 8px`，border-radius 4px，11px monospace `rgba(255,255,255,0.4)`）
+- 三行 flex space-between（silent capture / area select / toggle answers）：左侧 label 11px `rgba(255,255,255,0.6)`，右侧快捷键 pill（`rgba(255,255,255,0.06)` 背景，padding `2px 8px`，border-radius 4px，11px monospace `rgba(255,255,255,0.4)`）
 - 录入模式：点击 pill → "press keys..." 闪烁（CSS blink animation），按下组合键保存
 - 保存成功：pill 背景短暂闪绿 `rgba(34,197,94,0.2)` 持续 800ms
 - 冲突检测：与另一个快捷键相同时 pill 背景闪红 600ms + 显示 "already in use" 文字提示，不保存
@@ -236,9 +243,17 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 4.7 ✅ Dropdown resize 白色闪烁修复（html/body 背景色匹配 + debounce 降至 30ms）
 - 4.8 ✅ 交互细节修复（footer 齿轮 hover、back 按钮 hover、快捷键冲突文字提示、e.code 修复 macOS Alt 字符问题）
 
+**阶段 4.9 — 体验优化**
+
+- 4.9.1 ✅ 首次使用引导（hasFirstCapture 设置 + idle-view 条件渲染，首次截图成功前显示 "ready to go" 提示）
+- 4.9.2 ✅ no_questions 错误不显示 Retry（同一张图重试浪费 token，改为提示用 ⌃⌥A）
+- 4.9.3 ✅ ⌃⌥D toggle dropdown 快捷键（直接 show/hide dropdown BrowserWindow，不操作 tray，Settings 可自定义，三键冲突检测）
+- 4.9.4 ✅ 主面板 footer 增加 Quit 按钮（齿轮右侧）
+- 4.9.5 ✅ System prompt 优化（"most likely answers"、reason 1-2 句、支持非选择题返回 "—"）
+
 **阶段 5 — 后端功能完善（部分完成）**
 
-- 5.1 ✅ System prompt 优化（角色定义、JSON 输出格式、多语言 reason、忽略浏览器 UI 元素）
+- 5.1 ✅ System prompt 优化（角色定义、JSON 输出格式、多语言 reason、忽略浏览器 UI 元素、非选择题处理）
 - 5.2 ❌ 模型抽象层 — 跳过（YAGNI，当前只用一个模型）
 - 5.3 ❌ 流式响应 — 跳过（分析耗时短，投入产出比低）
 - 5.4 ❌ 历史记录 — 砍掉（核心场景不需要）
@@ -272,7 +287,7 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 snapcue/
 ├── electron/              # Electron main process
 │   ├── main.ts            # App 生命周期 + hotkeys + onboarding 窗口启动
-│   ├── tray.ts            # Tray icon + dropdown window + tray 状态管理
+│   ├── tray.ts            # Tray icon + dropdown window + tray 状态管理 + toggleDropdown
 │   ├── tray-icons.ts      # SVG→sharp→nativeImage 生成 4 种 tray 图标 + analyzing 暗淡版本
 │   ├── screenshot.ts      # 截图捕获 + sharp 缩放 + 权限检测
 │   ├── ipc.ts             # 所有 IPC handler 注册 + 快捷键管理 + 截图→分析流程
@@ -289,8 +304,8 @@ snapcue/
 │   ├── use-auto-height.ts # 自动高度 + 防抖（30ms）
 │   ├── index.css          # 全局样式（动画 keyframes、滚动条隐藏）
 │   └── components/
-│       ├── footer-bar.tsx       # 主面板底栏（齿轮 icon + hover）
-│       ├── idle-view.tsx        # 空闲态（装饰圆点 + 快捷键提示，从 DEFAULT_SETTINGS 初始化）
+│       ├── footer-bar.tsx       # 主面板底栏（齿轮 icon + Quit 按钮）
+│       ├── idle-view.tsx        # 空闲态（首次使用引导 / 装饰圆点 + 快捷键提示）
 │       ├── loading-view.tsx     # 加载态（脉冲圆点 + 8s 超时提示）
 │       ├── permission-guide.tsx # 权限引导（dropdown 内，英文）
 │       ├── settings-view.tsx    # 设置页（快捷键录入+冲突检测+保存确认 + icon 选择 + Quit）

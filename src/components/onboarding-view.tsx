@@ -83,7 +83,8 @@ function WelcomePage({ onNext }: { onNext: () => void }) {
             marginTop: '6px',
           }}
         >
-          screenshot any question. get the answer.
+          Screenshot the hard part.
+          The shortcut to every answer.
         </p>
       </div>
 

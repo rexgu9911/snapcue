@@ -16,7 +16,7 @@ function ErrorPanel({ error }: { error: CaptureError }) {
       <p style={{ fontSize: '11px', lineHeight: 1.45, color: 'rgba(255,255,255,0.35)' }}>
         {error.message}
       </p>
-      {error.canRetry && (
+      {error.canRetry ? (
         <button
           onClick={() => window.snapcue.retryCapture()}
           className="w-full transition-colors"
@@ -34,7 +34,11 @@ function ErrorPanel({ error }: { error: CaptureError }) {
         >
           Retry
         </button>
-      )}
+      ) : error.type === 'no_questions' ? (
+        <p style={{ marginTop: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+          try ⌃⌥A to select the question area
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -44,7 +48,14 @@ export function App() {
   const [error, setError] = useState<CaptureError | null>(null)
   const [answers, setAnswers] = useState<AnswerItem[]>([])
   const [view, setView] = useState<View>('main')
+  const [hasFirstCapture, setHasFirstCapture] = useState(false)
   const containerRef = useAutoHeight<HTMLDivElement>()
+
+  useEffect(() => {
+    window.snapcue.getSettings().then((s) => {
+      setHasFirstCapture(!!s.hasFirstCapture)
+    })
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -78,6 +89,7 @@ export function App() {
       window.snapcue.onCaptureResult((items) => {
         setStatus('result')
         setAnswers(items)
+        setHasFirstCapture(true)
       }),
     ]
     return () => unsubs.forEach((fn) => fn())
@@ -102,7 +114,7 @@ export function App() {
           <SettingsView onBack={() => setView('main')} />
         ) : (
           <>
-            {status === 'ready' && <IdleView />}
+            {status === 'ready' && <IdleView hasFirstCapture={hasFirstCapture} />}
 
             {status === 'no-permission' && <PermissionGuide />}
 

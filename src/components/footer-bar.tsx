@@ -14,36 +14,48 @@ export function FooterBar({ onOpenSettings }: FooterBarProps) {
       {/* Left side reserved for future credits display */}
       <span />
 
-      {/* Settings gear */}
-      <button
-        onClick={onOpenSettings}
-        className="flex items-center justify-center transition-colors"
-        style={{ width: '16px', height: '16px' }}
-        aria-label="Settings"
-        onMouseEnter={(e) => {
-          const svg = e.currentTarget.querySelector('svg')
-          if (svg) svg.style.color = 'rgba(255,255,255,0.5)'
-        }}
-        onMouseLeave={(e) => {
-          const svg = e.currentTarget.querySelector('svg')
-          if (svg) svg.style.color = 'rgba(255,255,255,0.25)'
-        }}
-      >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 16 16"
-          fill="none"
-          style={{ color: 'rgba(255,255,255,0.25)', transition: 'color 0.15s' }}
+      {/* Right side: Settings + Quit */}
+      <div className="flex items-center" style={{ gap: '8px' }}>
+        <button
+          onClick={onOpenSettings}
+          className="flex items-center justify-center"
+          style={{ width: '16px', height: '16px' }}
+          aria-label="Settings"
+          onMouseEnter={(e) => {
+            const svg = e.currentTarget.querySelector('svg')
+            if (svg) svg.style.color = 'rgba(255,255,255,0.5)'
+          }}
+          onMouseLeave={(e) => {
+            const svg = e.currentTarget.querySelector('svg')
+            if (svg) svg.style.color = 'rgba(255,255,255,0.25)'
+          }}
         >
-          <path
-            d="M7.07 1.5A.93.93 0 0 1 8 .57h0a.93.93 0 0 1 .93.93v.63a5.08 5.08 0 0 1 1.71.71l.44-.44a.93.93 0 0 1 1.32 0h0a.93.93 0 0 1 0 1.32l-.44.44c.3.52.54 1.1.71 1.71h.63a.93.93 0 0 1 .93.93h0a.93.93 0 0 1-.93.93h-.63a5.08 5.08 0 0 1-.71 1.71l.44.44a.93.93 0 0 1 0 1.32h0a.93.93 0 0 1-1.32 0l-.44-.44a5.08 5.08 0 0 1-1.71.71v.63a.93.93 0 0 1-.93.93h0a.93.93 0 0 1-.93-.93v-.63a5.08 5.08 0 0 1-1.71-.71l-.44.44a.93.93 0 0 1-1.32 0h0a.93.93 0 0 1 0-1.32l.44-.44a5.08 5.08 0 0 1-.71-1.71H2.7a.93.93 0 0 1-.93-.93h0a.93.93 0 0 1 .93-.93h.63a5.08 5.08 0 0 1 .71-1.71l-.44-.44a.93.93 0 0 1 0-1.32h0a.93.93 0 0 1 1.32 0l.44.44A5.08 5.08 0 0 1 7.07 2.13V1.5ZM8 10.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 20 20"
+            fill="none"
+            style={{ color: 'rgba(255,255,255,0.25)', transition: 'color 0.15s' }}
+          >
+            <path
+              d="M8.5 2.5a1.5 1.5 0 0 1 3 0v.3a1.2 1.2 0 0 0 .8 1.13 1.2 1.2 0 0 0 1.36-.27l.21-.21a1.5 1.5 0 1 1 2.12 2.12l-.21.21a1.2 1.2 0 0 0-.27 1.36 1.2 1.2 0 0 0 1.13.8h.3a1.5 1.5 0 0 1 0 3h-.3a1.2 1.2 0 0 0-1.13.8 1.2 1.2 0 0 0 .27 1.36l.21.21a1.5 1.5 0 1 1-2.12 2.12l-.21-.21a1.2 1.2 0 0 0-1.36-.27 1.2 1.2 0 0 0-.8 1.13v.3a1.5 1.5 0 0 1-3 0v-.3a1.2 1.2 0 0 0-.8-1.13 1.2 1.2 0 0 0-1.36.27l-.21.21a1.5 1.5 0 1 1-2.12-2.12l.21-.21a1.2 1.2 0 0 0 .27-1.36 1.2 1.2 0 0 0-1.13-.8h-.3a1.5 1.5 0 0 1 0-3h.3a1.2 1.2 0 0 0 1.13-.8 1.2 1.2 0 0 0-.27-1.36l-.21-.21a1.5 1.5 0 1 1 2.12-2.12l.21.21a1.2 1.2 0 0 0 1.36.27 1.2 1.2 0 0 0 .8-1.13V2.5Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+
+        <button
+          onClick={() => window.snapcue.quit()}
+          style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
+        >
+          Quit
+        </button>
+      </div>
     </div>
   )
 }

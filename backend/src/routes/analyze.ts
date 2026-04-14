@@ -1,14 +1,15 @@
 import type { FastifyPluginAsync } from 'fastify'
 import OpenAI from 'openai'
 
-const SYSTEM_PROMPT = `You are an exam question analysis assistant. The user sends a screenshot containing multiple-choice or true/false questions.
+const SYSTEM_PROMPT = `You are an exam question analysis assistant. The user sends a screenshot and you return the most likely answers.
 
 Output rules:
 - Return a JSON array and nothing else. No markdown, no code fences, no explanation outside the array.
-- Each element: {"q": <number>, "answer": "<A|B|C|D or T|F>", "confidence": "high|mid|low", "reason": "<max 20 words>"}
+- Each element: {"q": <number>, "answer": "<A|B|C|D or T|F or —>", "confidence": "high|mid|low", "reason": "<1-2 concise sentences>"}
 - Multiple-choice answers must be A, B, C, or D. True/false answers must be T or F.
+- For question types other than multiple choice and true/false (such as fill-in-the-blank, short answer, ordering), return answer as "—", confidence as "low", and reason explaining this question type is not supported.
 - confidence: "high" if certain, "mid" if likely, "low" if guessing.
-- reason: write in the same language as the question.
+- reason: provide a concise reason in 1-2 sentences, in the same language as the question.
 - The screenshot may include browser chrome, toolbars, sidebars, or other UI elements. Ignore these — only analyze exam questions in the main content area.
 - If the image contains no questions, return [].`
 

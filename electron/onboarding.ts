@@ -42,6 +42,10 @@ export function createOnboardingWindow(): BrowserWindow {
   return win
 }
 
+export function isOnboardingOpen(): boolean {
+  return onboardingWindow !== null && !onboardingWindow.isDestroyed()
+}
+
 export function closeOnboardingWindow(): void {
   if (onboardingWindow && !onboardingWindow.isDestroyed()) {
     onboardingWindow.close()
