@@ -1,12 +1,14 @@
 @import 'tailwindcss';
 
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 ::-webkit-scrollbar {
   display: none;
-}
-body {
-  overflow-y: auto;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 @keyframes blink {
@@ -35,5 +37,210 @@ body {
   }
   50% {
     opacity: 0.6;
+  }
+}
+
+/* ── Onboarding animation (6s cycle) ─────────────────────────────────────── */
+
+@keyframes onb-window {
+  0% {
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes onb-selection {
+  0% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+  4% {
+    opacity: 1;
+    transform: scale(0.15);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  26% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes onb-particle-1 {
+  0%,
+  26% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  31% {
+    opacity: 0.7;
+    transform: translate(12px, -6px);
+  }
+  44% {
+    opacity: 0.5;
+    transform: translate(56px, -20px);
+  }
+  54% {
+    opacity: 0.2;
+    transform: translate(96px, -12px);
+  }
+  58% {
+    opacity: 0;
+    transform: translate(112px, -4px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(112px, -4px);
+  }
+}
+
+@keyframes onb-particle-2 {
+  0%,
+  28% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  34% {
+    opacity: 0.5;
+    transform: translate(16px, 2px);
+  }
+  46% {
+    opacity: 0.4;
+    transform: translate(60px, 4px);
+  }
+  56% {
+    opacity: 0.15;
+    transform: translate(100px, 2px);
+  }
+  60% {
+    opacity: 0;
+    transform: translate(116px, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(116px, 0);
+  }
+}
+
+@keyframes onb-particle-3 {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  36% {
+    opacity: 0.6;
+    transform: translate(14px, 8px);
+  }
+  48% {
+    opacity: 0.4;
+    transform: translate(54px, 18px);
+  }
+  57% {
+    opacity: 0.15;
+    transform: translate(94px, 10px);
+  }
+  62% {
+    opacity: 0;
+    transform: translate(110px, 4px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(110px, 4px);
+  }
+}
+
+@keyframes onb-dropdown {
+  0%,
+  56% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  63% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  96% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes onb-label-capture {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  22% {
+    opacity: 1;
+  }
+  27% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes onb-label-analyze {
+  0%,
+  26% {
+    opacity: 0;
+  }
+  31% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes onb-label-answer {
+  0%,
+  56% {
+    opacity: 0;
+  }
+  63% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
   }
 }

@@ -2,11 +2,13 @@ import { app, BrowserWindow, Tray, screen, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { IPC, type MainToRendererEvents, type TrayIcon } from '../shared/types'
-import { getTrayIcon } from './tray-icons'
+import { getTrayIcon, getAnalyzingIcon } from './tray-icons'
 
 let tray: Tray | null = null
 let dropdown: BrowserWindow | null = null
 let lastHideTime = 0
+let currentIconName: TrayIcon = 'dot'
+let doneTimer: ReturnType<typeof setTimeout> | null = null
 
 const DROPDOWN_WIDTH = 200
 const DROPDOWN_MIN_HEIGHT = 36
@@ -36,8 +38,38 @@ async function createTrayWithIcon(iconName: TrayIcon): Promise<Tray> {
 
 export async function updateTrayIcon(name: TrayIcon): Promise<void> {
   if (!tray) return
+  currentIconName = name
   const icon = await getTrayIcon(name)
   tray.setImage(icon)
+}
+
+const DONE_DURATION_MS = 3_000
+
+export async function setTrayState(state: 'idle' | 'analyzing' | 'done'): Promise<void> {
+  if (!tray) return
+
+  // Clear any pending done→idle timer
+  if (doneTimer) {
+    clearTimeout(doneTimer)
+    doneTimer = null
+  }
+
+  if (state === 'analyzing') {
+    const icon = await getAnalyzingIcon(currentIconName)
+    tray.setImage(icon)
+  } else {
+    // Both 'idle' and 'done' restore the normal icon
+    const icon = await getTrayIcon(currentIconName)
+    tray.setImage(icon)
+
+    if (state === 'done') {
+      doneTimer = setTimeout(async () => {
+        doneTimer = null
+        // No visual change needed — icon is already normal.
+        // Timer exists so future states (e.g. a subtle "done" variant) can hook in here.
+      }, DONE_DURATION_MS)
+    }
+  }
 }
 
 function createDropdown(): BrowserWindow {
@@ -128,6 +160,7 @@ export function sendToDropdown<C extends keyof MainToRendererEvents>(
 }
 
 export async function initTray(iconName: TrayIcon = 'dot'): Promise<void> {
+  currentIconName = iconName
   tray = await createTrayWithIcon(iconName)
   dropdown = createDropdown()
 

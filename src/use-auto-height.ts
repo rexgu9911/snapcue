@@ -1,7 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react'
 
 const THRESHOLD_PX = 2
-const DEBOUNCE_MS = 100
+const DEBOUNCE_MS = 30
 
 /** Observe an element's height and report it to the main process for window resizing. */
 export function useAutoHeight<T extends HTMLElement>(): RefObject<T> {

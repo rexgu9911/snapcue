@@ -22,26 +22,24 @@ export function PermissionGuide() {
         <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
           <span className="text-xs text-amber-400">!</span>
         </div>
-        <p className="text-sm font-medium text-white/90">
-          SnapCue 需要屏幕录制权限才能截图
-        </p>
+        <p className="text-sm font-medium text-white/90">Screen recording permission required</p>
       </div>
       <p className="text-xs leading-relaxed text-white/50">
-        请在系统设置中授权后点击重新检测
+        Grant access in System Settings, then tap recheck below.
       </p>
       <div className="flex flex-col gap-2">
         <button
           onClick={handleOpenSettings}
           className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition-colors hover:bg-white/20 active:bg-white/25"
         >
-          打开系统设置
+          Open System Settings
         </button>
         <button
           onClick={handleRecheck}
           disabled={checking}
           className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/15 disabled:opacity-50"
         >
-          {checking ? '检测中...' : '我已授权，重新检测'}
+          {checking ? 'Checking...' : 'Recheck Permission'}
         </button>
       </div>
     </div>

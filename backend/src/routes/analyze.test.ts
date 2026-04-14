@@ -37,9 +37,7 @@ describe('POST /analyze', () => {
   })
 
   it('returns parsed answers from GPT-5 mini', async () => {
-    const mockAnswers = [
-      { q: 1, answer: 'B', confidence: 'high', reason: 'Explanation here' },
-    ]
+    const mockAnswers = [{ q: 1, answer: 'B', confidence: 'high', reason: 'Explanation here' }]
 
     mockCreate.mockResolvedValueOnce({
       choices: [{ message: { content: JSON.stringify(mockAnswers) } }],

@@ -12,7 +12,7 @@ type View = 'main' | 'settings'
 
 function ErrorPanel({ error }: { error: CaptureError }) {
   return (
-    <div style={{ padding: '8px 10px' }}>
+    <div style={{ padding: '6px 10px' }}>
       <p style={{ fontSize: '11px', lineHeight: 1.45, color: 'rgba(255,255,255,0.35)' }}>
         {error.message}
       </p>
@@ -22,7 +22,7 @@ function ErrorPanel({ error }: { error: CaptureError }) {
           className="w-full transition-colors"
           style={{
             marginTop: '6px',
-            padding: '3px 0',
+            padding: '4px 0',
             borderRadius: '4px',
             fontSize: '11px',
             fontWeight: 500,
@@ -88,6 +88,7 @@ export function App() {
       ref={containerRef}
       className="flex flex-col"
       style={{
+        width: '200px',
         background: 'rgba(30,30,30,0.92)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',

@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, type CaptureMode, type AppSettings, type AnswerItem, type CaptureError } from '../shared/types'
+import {
+  IPC,
+  type CaptureMode,
+  type AppSettings,
+  type AnswerItem,
+  type CaptureError,
+} from '../shared/types'
 
 contextBridge.exposeInMainWorld('snapcue', {
   platform: process.platform,
@@ -51,4 +57,7 @@ contextBridge.exposeInMainWorld('snapcue', {
 
   // ── App lifecycle ───────────────────────────────────────────────────────
   quit: () => ipcRenderer.invoke(IPC.APP_QUIT),
+
+  // ── Onboarding ──────────────────────────────────────────────────────────
+  completeOnboarding: () => ipcRenderer.invoke(IPC.ONBOARDING_COMPLETE),
 })

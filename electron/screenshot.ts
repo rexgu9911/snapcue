@@ -4,6 +4,7 @@ import { existsSync, statSync, unlinkSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { promisify } from 'util'
+import { systemPreferences } from 'electron'
 import sharp from 'sharp'
 
 const execFileAsync = promisify(execFile)
@@ -11,7 +12,10 @@ const execFileAsync = promisify(execFile)
 const MAX_LONG_EDGE = 1200
 
 /** Resize a PNG buffer so the longest edge is at most `maxEdge` px. Returns base64. */
-export async function downscaleToBase64(pngBuffer: Buffer, maxEdge = MAX_LONG_EDGE): Promise<string> {
+export async function downscaleToBase64(
+  pngBuffer: Buffer,
+  maxEdge = MAX_LONG_EDGE,
+): Promise<string> {
   const image = sharp(pngBuffer)
   const meta = await image.metadata()
   const width = meta.width ?? 0
@@ -132,16 +136,10 @@ export async function captureScreenshot(mode: 'silent' | 'region'): Promise<stri
 
 /**
  * Check if macOS screen recording permission is granted.
- * Performs a test screencapture — a 0-byte or missing file means no permission.
+ * Uses Electron's systemPreferences API which queries the TCC database directly.
  */
-export async function checkScreenRecordingPermission(): Promise<boolean> {
-  const dest = tempPath()
-  try {
-    await execFileAsync('screencapture', ['-x', dest], { timeout: 5000 })
-    return existsSync(dest) && statSync(dest).size > 0
-  } catch {
-    return false
-  } finally {
-    cleanupFile(dest)
-  }
+export function checkScreenRecordingPermission(): boolean {
+  const status = systemPreferences.getMediaAccessStatus('screen')
+  console.log('[SnapCue] Screen recording permission status:', status)
+  return status === 'granted'
 }

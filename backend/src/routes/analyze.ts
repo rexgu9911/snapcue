@@ -100,9 +100,7 @@ export const analyzeRoute: FastifyPluginAsync = async (app) => {
   })
 }
 
-function detectMediaType(
-  base64: string,
-): 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' {
+function detectMediaType(base64: string): 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' {
   if (base64.startsWith('data:image/jpeg') || base64.startsWith('/9j/')) return 'image/jpeg'
   if (base64.startsWith('data:image/gif') || base64.startsWith('R0lGOD')) return 'image/gif'
   if (base64.startsWith('data:image/webp') || base64.startsWith('UklGR')) return 'image/webp'

@@ -7,7 +7,8 @@ import {
   type CaptureError,
   type ErrorType,
 } from '../shared/types'
-import { sendToDropdown, updateTrayIcon } from './tray'
+import { sendToDropdown, updateTrayIcon, setTrayState } from './tray'
+import { closeOnboardingWindow } from './onboarding'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 
@@ -56,7 +57,10 @@ function classifyError(err: unknown): { type: ErrorType; message: string } {
 
   if (
     msg.includes('ECONNREFUSED') ||
+    msg.includes('ERR_CONNECTION_REFUSED') ||
     msg.includes('ENOTFOUND') ||
+    msg.includes('ERR_NAME_NOT_RESOLVED') ||
+    msg.includes('ERR_CONNECTION_TIMED_OUT') ||
     msg.includes('fetch failed') ||
     msg.includes('network') ||
     msg.includes('NetworkError')
@@ -68,7 +72,7 @@ function classifyError(err: unknown): { type: ErrorType; message: string } {
     return { type: 'parse_error', message: 'Failed to parse AI response. Try again.' }
   }
 
-  return { type: 'unknown', message: msg }
+  return { type: 'unknown', message: 'Something went wrong. Try again.' }
 }
 
 // ── Permission state ─────────────────────────────────────────────────────────
@@ -87,8 +91,16 @@ let settings: AppSettings = loadSettings()
 
 function registerShortcuts(): void {
   globalShortcut.unregisterAll()
-  globalShortcut.register(settings.hotkeys.silentCapture, () => handleCapture('silent'))
-  globalShortcut.register(settings.hotkeys.regionSelect, () => handleCapture('region'))
+  try {
+    globalShortcut.register(settings.hotkeys.silentCapture, () => handleCapture('silent'))
+  } catch (err) {
+    console.error('[SnapCue] Failed to register silentCapture shortcut:', err)
+  }
+  try {
+    globalShortcut.register(settings.hotkeys.regionSelect, () => handleCapture('region'))
+  } catch (err) {
+    console.error('[SnapCue] Failed to register regionSelect shortcut:', err)
+  }
 }
 
 function applySettingsChange(partial: Partial<AppSettings>): void {
@@ -117,6 +129,7 @@ function applySettingsChange(partial: Partial<AppSettings>): void {
 /** Send screenshot to backend and handle result/error */
 async function analyzeAndDeliver(base64: string): Promise<void> {
   sendToDropdown(IPC.CAPTURE_LOADING)
+  setTrayState('analyzing')
 
   try {
     const result = await analyzeImage(base64)
@@ -136,6 +149,8 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
     const { type, message } = classifyError(err)
     const error: CaptureError = { type, message, canRetry: true }
     sendToDropdown(IPC.CAPTURE_ERROR, error)
+  } finally {
+    setTrayState('done')
   }
 }
 
@@ -179,7 +194,7 @@ async function handleRetry(): Promise<void> {
 
 export async function initIpc(): Promise<void> {
   // Check permission on startup
-  screenPermissionGranted = await checkScreenRecordingPermission()
+  screenPermissionGranted = checkScreenRecordingPermission()
   if (!screenPermissionGranted) {
     console.warn('SnapCue: Screen recording permission not granted')
   }
@@ -200,8 +215,8 @@ export async function initIpc(): Promise<void> {
     )
   })
 
-  ipcMain.handle(IPC.PERMISSION_RECHECK, async () => {
-    screenPermissionGranted = await checkScreenRecordingPermission()
+  ipcMain.handle(IPC.PERMISSION_RECHECK, () => {
+    screenPermissionGranted = checkScreenRecordingPermission()
     sendToDropdown(IPC.PERMISSION_STATUS, screenPermissionGranted)
     return screenPermissionGranted
   })
@@ -216,6 +231,11 @@ export async function initIpc(): Promise<void> {
 
   ipcMain.handle(IPC.APP_QUIT, () => {
     app.quit()
+  })
+
+  ipcMain.handle(IPC.ONBOARDING_COMPLETE, () => {
+    applySettingsChange({ hasOnboarded: true })
+    closeOnboardingWindow()
   })
 
   // Register global shortcuts from persisted settings

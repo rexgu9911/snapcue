@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { DEFAULT_SETTINGS } from '../../shared/types'
 
 function formatShortcut(accel: string): string {
   return accel
@@ -10,8 +11,8 @@ function formatShortcut(accel: string): string {
 }
 
 export function IdleView() {
-  const [silent, setSilent] = useState('⌃⌥S')
-  const [region, setRegion] = useState('⌃⌥A')
+  const [silent, setSilent] = useState(() => formatShortcut(DEFAULT_SETTINGS.hotkeys.silentCapture))
+  const [region, setRegion] = useState(() => formatShortcut(DEFAULT_SETTINGS.hotkeys.regionSelect))
 
   useEffect(() => {
     window.snapcue.getSettings().then((s) => {
@@ -21,7 +22,7 @@ export function IdleView() {
   }, [])
 
   return (
-    <div className="flex flex-col items-center" style={{ padding: '20px 14px' }}>
+    <div className="flex flex-col items-center" style={{ padding: '16px 12px' }}>
       {/* Decorative dots */}
       <div className="flex" style={{ gap: '6px', marginBottom: '14px' }}>
         {[0, 1, 2].map((i) => (

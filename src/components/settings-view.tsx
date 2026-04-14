@@ -30,11 +30,21 @@ function eventToAccelerator(e: KeyboardEvent): string | null {
   // Must have at least one modifier
   if (parts.length === 0) return null
 
-  // Normalize the key
-  let key = e.key.length === 1 ? e.key.toUpperCase() : e.key
-  // Map common key names to Electron accelerator names
-  if (key === ' ') key = 'Space'
-  if (key === 'Escape') key = 'Escape'
+  // Use e.code instead of e.key to get the physical key.
+  // On macOS, Alt/Option modifies e.key (e.g., Alt+S → "Å") but e.code stays "KeyS".
+  let key: string
+  if (e.code.startsWith('Key')) {
+    key = e.code.slice(3) // "KeyS" → "S"
+  } else if (e.code.startsWith('Digit')) {
+    key = e.code.slice(5) // "Digit1" → "1"
+  } else if (e.code === 'Space') {
+    key = 'Space'
+  } else if (e.code.startsWith('Arrow')) {
+    key = e.code.slice(5) // "ArrowUp" → "Up"
+  } else {
+    // Fallback: use e.key for special keys (F1-F12, Tab, etc.)
+    key = e.key
+  }
 
   parts.push(key)
   return parts.join('+')
@@ -47,6 +57,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
   const [trayIcon, setTrayIcon] = useState<TrayIcon>('dot')
   const [recording, setRecording] = useState<RecordingField>(null)
   const [conflict, setConflict] = useState<RecordingField>(null)
+  const [saved, setSaved] = useState<RecordingField>(null)
 
   // Load settings on mount
   useEffect(() => {
@@ -83,10 +94,13 @@ export function SettingsView({ onBack }: SettingsViewProps) {
       }
 
       // Save
-      const newHotkeys = { ...hotkeys, [recording]: accel }
+      const field = recording
+      const newHotkeys = { ...hotkeys, [field]: accel }
       setHotkeys(newHotkeys)
       window.snapcue.setSettings({ hotkeys: newHotkeys })
       setRecording(null)
+      setSaved(field)
+      setTimeout(() => setSaved(null), 800)
     }
 
     window.addEventListener('keydown', handler, true)
@@ -104,14 +118,24 @@ export function SettingsView({ onBack }: SettingsViewProps) {
       <button
         onClick={onBack}
         className="flex items-center self-start"
-        style={{ padding: '8px 10px 4px', gap: '3px' }}
+        style={{ padding: '6px 10px 4px', gap: '3px' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.querySelectorAll('svg, span').forEach((el) => {
+            ;(el as HTMLElement).style.color = 'rgba(255,255,255,0.7)'
+          })
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.querySelectorAll('svg, span').forEach((el) => {
+            ;(el as HTMLElement).style.color = 'rgba(255,255,255,0.4)'
+          })
+        }}
       >
         <svg
           width="11"
           height="11"
           viewBox="0 0 12 12"
           fill="none"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
         >
           <path
             d="M7.5 2L3.5 6L7.5 10"
@@ -121,17 +145,22 @@ export function SettingsView({ onBack }: SettingsViewProps) {
             strokeLinejoin="round"
           />
         </svg>
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>back</span>
+        <span
+          style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
+        >
+          back
+        </span>
       </button>
 
       {/* Shortcuts section */}
-      <div style={{ padding: '8px 10px 6px' }}>
+      <div style={{ padding: '4px 10px 4px' }}>
         <div
           style={{
             fontSize: '11px',
             letterSpacing: '0.5px',
             color: 'rgba(255,255,255,0.3)',
-            marginBottom: '6px',
+            marginTop: '8px',
+            marginBottom: '4px',
             textTransform: 'uppercase' as const,
           }}
         >
@@ -142,6 +171,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
           value={hotkeys.silentCapture}
           isRecording={recording === 'silentCapture'}
           isConflict={conflict === 'silentCapture'}
+          isSaved={saved === 'silentCapture'}
           onStartRecording={() => setRecording('silentCapture')}
         />
         <ShortcutRow
@@ -149,18 +179,20 @@ export function SettingsView({ onBack }: SettingsViewProps) {
           value={hotkeys.regionSelect}
           isRecording={recording === 'regionSelect'}
           isConflict={conflict === 'regionSelect'}
+          isSaved={saved === 'regionSelect'}
           onStartRecording={() => setRecording('regionSelect')}
         />
       </div>
 
       {/* Icon section */}
-      <div style={{ padding: '4px 10px 8px' }}>
+      <div style={{ padding: '4px 10px 6px' }}>
         <div
           style={{
             fontSize: '11px',
             letterSpacing: '0.5px',
             color: 'rgba(255,255,255,0.3)',
-            marginBottom: '6px',
+            marginTop: '8px',
+            marginBottom: '4px',
             textTransform: 'uppercase' as const,
           }}
         >
@@ -173,8 +205,8 @@ export function SettingsView({ onBack }: SettingsViewProps) {
               onClick={() => handleIconChange(icon)}
               className="flex items-center justify-center"
               style={{
-                width: '36px',
-                height: '30px',
+                width: '32px',
+                height: '26px',
                 borderRadius: '5px',
                 background: trayIcon === icon ? 'rgba(255,255,255,0.08)' : 'transparent',
               }}
@@ -189,7 +221,7 @@ export function SettingsView({ onBack }: SettingsViewProps) {
       <div
         className="flex items-center justify-between"
         style={{
-          padding: '5px 10px',
+          padding: '4px 10px',
           borderTop: '0.5px solid rgba(255,255,255,0.06)',
         }}
       >
@@ -212,34 +244,47 @@ function ShortcutRow({
   value,
   isRecording,
   isConflict,
+  isSaved,
   onStartRecording,
 }: {
   label: string
   value: string
   isRecording: boolean
   isConflict: boolean
+  isSaved: boolean
   onStartRecording: () => void
 }) {
-  const pillBg = isConflict ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.06)'
+  const pillBg = isConflict
+    ? 'rgba(239,68,68,0.3)'
+    : isSaved
+      ? 'rgba(34,197,94,0.2)'
+      : 'rgba(255,255,255,0.06)'
 
   return (
-    <div className="flex items-center justify-between" style={{ padding: '3px 0' }}>
-      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
-      <button
-        onClick={onStartRecording}
-        className="font-mono"
-        style={{
-          fontSize: '11px',
-          color: 'rgba(255,255,255,0.4)',
-          background: pillBg,
-          padding: '2px 8px',
-          borderRadius: '4px',
-          transition: 'background 0.2s',
-          animation: isRecording ? 'blink 1s ease-in-out infinite' : 'none',
-        }}
-      >
-        {isRecording ? 'press keys...' : formatShortcut(value)}
-      </button>
+    <div>
+      <div className="flex items-center justify-between" style={{ padding: '3px 0' }}>
+        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+        <button
+          onClick={onStartRecording}
+          className="font-mono"
+          style={{
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.4)',
+            background: pillBg,
+            padding: '2px 8px',
+            borderRadius: '4px',
+            transition: 'background 0.2s',
+            animation: isRecording ? 'blink 1s ease-in-out infinite' : 'none',
+          }}
+        >
+          {isRecording ? 'press keys...' : formatShortcut(value)}
+        </button>
+      </div>
+      {isConflict && (
+        <p style={{ fontSize: '10px', color: 'rgba(239,68,68,0.8)', padding: '1px 0 2px' }}>
+          already in use
+        </p>
+      )}
     </div>
   )
 }

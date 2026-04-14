@@ -36,6 +36,9 @@ interface SnapCueAPI {
 
   // App lifecycle
   quit: () => Promise<void>
+
+  // Onboarding
+  completeOnboarding: () => Promise<void>
 }
 
 interface Window {

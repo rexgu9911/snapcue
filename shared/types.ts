@@ -32,6 +32,7 @@ export interface AppSettings {
     regionSelect: string
   }
   trayIcon: TrayIcon
+  hasOnboarded: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     regionSelect: 'Control+Alt+A',
   },
   trayIcon: 'dot',
+  hasOnboarded: false,
 }
 
 // ── IPC Channel Definitions ──────────────────────────────────────────────────
@@ -80,6 +82,7 @@ export interface RendererToMainCommands {
   'permission:openSettings': { args: void; return: void }
   'permission:recheck': { args: void; return: boolean }
   'app:quit': { args: void; return: void }
+  'onboarding:complete': { args: void; return: void }
 }
 
 // ── Channel name constants (prevents typos) ──────────────────────────────────
@@ -104,4 +107,5 @@ export const IPC = {
   PERMISSION_OPEN_SETTINGS: 'permission:openSettings',
   PERMISSION_RECHECK: 'permission:recheck',
   APP_QUIT: 'app:quit',
+  ONBOARDING_COMPLETE: 'onboarding:complete',
 } as const
