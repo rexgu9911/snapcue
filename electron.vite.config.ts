@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
+    envPrefix: 'SNAPCUE_',
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
