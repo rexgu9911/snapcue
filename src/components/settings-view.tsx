@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import logoWhite from '../assets/logo-white.png'
 
 interface SettingsViewProps {
   onBack: () => void
@@ -50,7 +51,7 @@ function eventToAccelerator(e: KeyboardEvent): string | null {
   return parts.join('+')
 }
 
-const ICON_OPTIONS: TrayIcon[] = ['dot', 'book', 'bolt', 'square', 'input', 'shield', 'cn', 'ghost']
+const ICON_OPTIONS: TrayIcon[] = ['ghost', 'dot', 'book', 'bolt', 'square', 'input', 'shield', 'cn']
 
 export function SettingsView({ onBack }: SettingsViewProps) {
   const [hotkeys, setHotkeys] = useState({ silentCapture: '', regionSelect: '', toggleDropdown: '' })
@@ -394,16 +395,12 @@ function IconPreview({ icon }: { icon: TrayIcon }) {
       )
     case 'ghost':
       return (
-        <svg width="12" height="14" viewBox="0 0 12 16" fill="none" style={{ color }}>
-          <path
-            d="M3 14L4.2 12.5L6 14L7.8 12.5L9 14V8C9 5.8 7.7 3 6 3C4.3 3 3 5.8 3 8V14Z"
-            stroke="currentColor"
-            strokeWidth="1.1"
-            strokeLinejoin="round"
-          />
-          <circle cx="4.8" cy="8" r="0.8" fill="currentColor" />
-          <circle cx="7.2" cy="8" r="0.8" fill="currentColor" />
-        </svg>
+        <img
+          src={logoWhite}
+          alt=""
+          style={{ width: '16px', height: '16px', opacity: 0.5 }}
+          draggable={false}
+        />
       )
   }
 }

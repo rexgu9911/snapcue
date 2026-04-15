@@ -1,5 +1,6 @@
 import sharp from 'sharp'
 import { nativeImage } from 'electron'
+import { join } from 'path'
 import type { TrayIcon } from '../shared/types'
 
 const SIZE = 22
@@ -36,9 +37,11 @@ const SVGS: Record<TrayIcon, string> = {
   </svg>`,
 
   ghost: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7 18L8.5 16L11 18L13.5 16L15 18V10C15 7.2 13.2 4 11 4C8.8 4 7 7.2 7 10V18Z" stroke="black" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
-    <circle cx="9.5" cy="10" r="1" fill="black"/>
-    <circle cx="12.5" cy="10" r="1" fill="black"/>
+    <path d="M6 19V11C6 7.1 8.2 4 11 4C13.8 4 16 7.1 16 11V19L14.5 17.5L13 19L11 17L9 19L7.5 17.5L6 19Z" fill="black"/>
+    <circle cx="9.2" cy="11" r="1.5" fill="white"/>
+    <circle cx="9.5" cy="10.8" r="0.7" fill="black"/>
+    <ellipse cx="13" cy="11.5" rx="0.8" ry="0.5" fill="white" transform="rotate(-10 13 11.5)"/>
+    <path d="M15 5.5L17 5.5M17 5.5L17 7.5" stroke="black" stroke-width="1.3" stroke-linecap="round"/>
   </svg>`,
 }
 
@@ -80,9 +83,11 @@ const ANALYZING_SVGS: Record<TrayIcon, string> = {
 
   ghost: `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
     <g opacity="0.35">
-      <path d="M7 18L8.5 16L11 18L13.5 16L15 18V10C15 7.2 13.2 4 11 4C8.8 4 7 7.2 7 10V18Z" stroke="black" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
-      <circle cx="9.5" cy="10" r="1" fill="black"/>
-      <circle cx="12.5" cy="10" r="1" fill="black"/>
+      <path d="M6 19V11C6 7.1 8.2 4 11 4C13.8 4 16 7.1 16 11V19L14.5 17.5L13 19L11 17L9 19L7.5 17.5L6 19Z" fill="black"/>
+      <circle cx="9.2" cy="11" r="1.5" fill="white"/>
+      <circle cx="9.5" cy="10.8" r="0.7" fill="black"/>
+      <ellipse cx="13" cy="11.5" rx="0.8" ry="0.5" fill="white" transform="rotate(-10 13 11.5)"/>
+      <path d="M15 5.5L17 5.5M17 5.5L17 7.5" stroke="black" stroke-width="1.3" stroke-linecap="round"/>
     </g>
   </svg>`,
 }
@@ -104,10 +109,25 @@ async function renderIcon(svg: string, cacheKey: string): Promise<Electron.Nativ
   return img
 }
 
+function loadGhostIcon(cacheKey: string, dimmed: boolean): Electron.NativeImage {
+  const cached = cache.get(cacheKey)
+  if (cached) return cached
+
+  const suffix = dimmed ? 'GhostDim' : 'Ghost'
+  const img = nativeImage.createFromPath(
+    join(__dirname, `../../resources/trayIcon${suffix}@2x.png`),
+  )
+  img.setTemplateImage(true)
+  cache.set(cacheKey, img)
+  return img
+}
+
 export async function getTrayIcon(name: TrayIcon): Promise<Electron.NativeImage> {
+  if (name === 'ghost') return loadGhostIcon('ghost', false)
   return renderIcon(SVGS[name], name)
 }
 
 export async function getAnalyzingIcon(name: TrayIcon): Promise<Electron.NativeImage> {
+  if (name === 'ghost') return loadGhostIcon('ghost-analyzing', true)
   return renderIcon(ANALYZING_SVGS[name], `${name}-analyzing`)
 }

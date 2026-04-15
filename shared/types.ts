@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     regionSelect: 'Control+Alt+A',
     toggleDropdown: 'Control+Alt+D',
   },
-  trayIcon: 'dot',
+  trayIcon: 'ghost',
   hasOnboarded: false,
 }
 

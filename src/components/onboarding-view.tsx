@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import logoWhite from '../assets/logo-white.png'
 
 type Page = 0 | 1 | 2
 
@@ -23,19 +24,67 @@ export function OnboardingView() {
         style={{ height: '44px', WebkitAppRegion: 'drag' } as React.CSSProperties}
       />
 
-      {/* Page content */}
+      {/* Page content — fills available space */}
       <div
         className="flex flex-1 flex-col items-center"
         key={page}
-        style={{ padding: '0 28px 24px', animation: 'fadeIn 150ms ease' }}
+        style={{ padding: '0 28px', animation: 'fadeIn 150ms ease', minHeight: 0 }}
       >
-        {page === 0 && <WelcomePage onNext={() => setPage(1)} />}
-        {page === 1 && <ShortcutsPage onBack={() => setPage(0)} onNext={() => setPage(2)} />}
-        {page === 2 && <PermissionPage onBack={() => setPage(1)} />}
+        {page === 0 && <WelcomeContent />}
+        {page === 1 && (
+          <ShortcutsContent
+            onBack={() => setPage(0)}
+          />
+        )}
+        {page === 2 && <PermissionContent onBack={() => setPage(1)} />}
       </div>
 
-      {/* Page indicator dots */}
-      <PageDots current={page} />
+      {/* Fixed bottom: button + dots — same position on all pages */}
+      <div
+        className="flex shrink-0 flex-col items-center"
+        style={{ padding: '0 28px 8px' }}
+      >
+        {page === 0 && (
+          <OnboardingButton onClick={() => setPage(1)} wide>
+            Get Started
+          </OnboardingButton>
+        )}
+        {page === 1 && (
+          <>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginBottom: '12px' }}>
+              change shortcuts in settings
+            </p>
+            <OnboardingButton onClick={() => setPage(2)}>Continue</OnboardingButton>
+          </>
+        )}
+        {page === 2 && (
+          <button
+            onClick={() => window.snapcue.completeOnboarding()}
+            className="transition-colors duration-200"
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.5)',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px',
+              padding: '6px 24px',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'rgba(255,255,255,0.8)'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+            }}
+          >
+            Continue without permission →
+          </button>
+        )}
+        <PageDots current={page} />
+      </div>
     </div>
   )
 }
@@ -44,7 +93,7 @@ export function OnboardingView() {
 
 function PageDots({ current }: { current: number }) {
   return (
-    <div className="flex shrink-0 items-center justify-center gap-[8px] pb-6">
+    <div className="flex items-center justify-center gap-[8px]" style={{ paddingTop: '14px', paddingBottom: '10px' }}>
       {[0, 1, 2].map((i) => (
         <div
           key={i}
@@ -65,11 +114,17 @@ function PageDots({ current }: { current: number }) {
 
 const ONB_ANIM = '6s cubic-bezier(0.4, 0, 0.2, 1) infinite'
 
-function WelcomePage({ onNext }: { onNext: () => void }) {
+function WelcomeContent() {
   return (
     <>
       {/* Header */}
       <div className="flex flex-col items-center text-center">
+        <img
+          src={logoWhite}
+          alt=""
+          style={{ width: '56px', height: '56px', marginBottom: '8px', opacity: 0.9 }}
+          draggable={false}
+        />
         <h1
           className="leading-none tracking-tight"
           style={{ fontSize: '20px', fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}
@@ -88,13 +143,13 @@ function WelcomePage({ onNext }: { onNext: () => void }) {
         </p>
       </div>
 
-      {/* Animation area */}
-      <div className="flex flex-1 items-center justify-center">
+      {/* Animation area — centered in remaining space */}
+      <div className="flex flex-1 items-center justify-center" style={{ minHeight: 0 }}>
         <div
           style={{
             position: 'relative',
             width: '290px',
-            height: '160px',
+            height: '140px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -305,7 +360,7 @@ function WelcomePage({ onNext }: { onNext: () => void }) {
               style={{
                 position: 'absolute',
                 left: '150px',
-                top: `${80 - p.size / 2}px`,
+                top: `${70 - p.size / 2}px`,
                 width: `${p.size}px`,
                 height: `${p.size}px`,
                 borderRadius: '50%',
@@ -338,13 +393,6 @@ function WelcomePage({ onNext }: { onNext: () => void }) {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Button */}
-      <div className="flex flex-col items-center">
-        <OnboardingButton onClick={onNext} wide>
-          Get Started
-        </OnboardingButton>
       </div>
     </>
   )
@@ -405,7 +453,7 @@ const SHORTCUTS = [
   },
 ] as const
 
-function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
+function ShortcutsContent({ onBack }: { onBack: () => void }) {
   const [group, setGroup] = useState(0)
   const [pressed, setPressed] = useState<Set<string>>(new Set())
   const [textVisible, setTextVisible] = useState(true)
@@ -414,29 +462,27 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
     const CYCLE = 8000
     const HALF = CYCLE / 2
 
+    let activeTimers: ReturnType<typeof setTimeout>[] = []
+
     function runHalf(g: number) {
       setGroup(g)
       setTextVisible(true)
 
       const keys = SHORTCUTS[g].keys
-      const t1 = setTimeout(() => setPressed(new Set([keys[0]])), 0)
-      const t2 = setTimeout(() => setPressed(new Set([keys[0], keys[1]])), 150)
-      const t3 = setTimeout(() => setPressed(new Set([keys[0], keys[1], keys[2]])), 300)
-      const t4 = setTimeout(() => setPressed(new Set()), 2000)
-      const t5 = setTimeout(() => setTextVisible(false), 3400)
-
-      return [t1, t2, t3, t4, t5]
+      activeTimers.push(
+        setTimeout(() => setPressed(new Set([keys[0]])), 0),
+        setTimeout(() => setPressed(new Set([keys[0], keys[1]])), 150),
+        setTimeout(() => setPressed(new Set([keys[0], keys[1], keys[2]])), 300),
+        setTimeout(() => setPressed(new Set()), 2000),
+        setTimeout(() => setTextVisible(false), 3400),
+      )
     }
 
-    const timers: ReturnType<typeof setTimeout>[] = []
-
     function startCycle() {
-      const firstHalf = runHalf(0)
-      const secondHalfTimer = setTimeout(() => {
-        const secondHalf = runHalf(1)
-        timers.push(...secondHalf)
-      }, HALF)
-      timers.push(...firstHalf, secondHalfTimer)
+      activeTimers.forEach(clearTimeout)
+      activeTimers = []
+      runHalf(0)
+      activeTimers.push(setTimeout(() => runHalf(1), HALF))
     }
 
     startCycle()
@@ -444,7 +490,7 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
 
     return () => {
       clearInterval(interval)
-      timers.forEach(clearTimeout)
+      activeTimers.forEach(clearTimeout)
     }
   }, [])
 
@@ -457,7 +503,7 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
       {/* Main content — left text + right keyboard */}
       <div
         className="flex flex-1 items-center justify-center"
-        style={{ gap: '36px', padding: '0 4px' }}
+        style={{ gap: '36px', padding: '0 4px', minHeight: 0 }}
       >
         {/* Left: shortcut combo + title + description */}
         <div
@@ -529,7 +575,6 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
                       transition: 'all 150ms ease-out',
                     }}
                   >
-                    {/* Modifier key: symbol on top, label below */}
                     {isModifier && (
                       <>
                         <span style={{ fontSize: '12px', lineHeight: 1 }}>{key.symbol}</span>
@@ -543,14 +588,12 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
                         </span>
                       </>
                     )}
-                    {/* Shift: symbol left, label right */}
                     {key.shiftLayout && (
                       <>
                         <span style={{ fontSize: '12px', lineHeight: 1 }}>{key.symbol}</span>
                         <span style={{ fontSize: '10px', lineHeight: 1 }}>{key.label}</span>
                       </>
                     )}
-                    {/* Plain key: letters (14px) or function names (10px) */}
                     {!key.symbol && (
                       <span style={{ fontSize: key.id.length === 1 ? '14px' : '10px' }}>
                         {key.label}
@@ -563,14 +606,6 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
           ))}
         </div>
       </div>
-
-      {/* Bottom */}
-      <div className="flex flex-col items-center">
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginBottom: '20px' }}>
-          change shortcuts in settings
-        </p>
-        <OnboardingButton onClick={onNext}>Continue</OnboardingButton>
-      </div>
     </>
   )
 }
@@ -580,7 +615,7 @@ function ShortcutsPage({ onBack, onNext }: { onBack: () => void; onNext: () => v
 // and macOS 15 makes detection unreliable anyway. The dropdown's permission-guide
 // handles the case where the user skips this step.
 
-function PermissionPage({ onBack }: { onBack: () => void }) {
+function PermissionContent({ onBack }: { onBack: () => void }) {
   const [rowHighlight, setRowHighlight] = useState(false)
   const [toggled, setToggled] = useState(false)
 
@@ -609,7 +644,7 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
       {/* Main content — left text + right mockup */}
       <div
         className="flex flex-1 items-center justify-center"
-        style={{ gap: '36px', padding: '0 12px' }}
+        style={{ gap: '36px', padding: '0 12px', minHeight: 0 }}
       >
         {/* Left: text + button */}
         <div style={{ flexShrink: 0, maxWidth: '180px' }}>
@@ -718,7 +753,6 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
                       transition: isSnapCue ? 'background 400ms ease' : undefined,
                     }}
                   >
-                    {/* Arrow indicator for SnapCue row */}
                     {isSnapCue ? (
                       <span
                         style={{
@@ -733,7 +767,6 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
                     ) : (
                       <span style={{ width: '10px', flexShrink: 0 }} />
                     )}
-                    {/* App icon placeholder */}
                     <div
                       style={{
                         width: '12px',
@@ -743,7 +776,6 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
                         flexShrink: 0,
                       }}
                     />
-                    {/* App name */}
                     <span
                       style={{
                         fontSize: '12px',
@@ -755,7 +787,6 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
                     >
                       {app.name}
                     </span>
-                    {/* Toggle switch */}
                     <div
                       style={{
                         width: '20px',
@@ -781,7 +812,6 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
                       />
                     </div>
                   </div>
-                  {/* Divider between rows */}
                   {i < APPS.length - 1 && (
                     <div
                       style={{
@@ -796,24 +826,6 @@ function PermissionPage({ onBack }: { onBack: () => void }) {
             })}
           </div>
         </div>
-      </div>
-
-      {/* Bottom Continue link */}
-      <div className="flex w-full justify-center">
-        <button
-          onClick={() => window.snapcue.completeOnboarding()}
-          className="transition-colors duration-200"
-          style={{
-            fontSize: '12px',
-            color: 'rgba(255,255,255,0.3)',
-            background: 'transparent',
-            border: 'none',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
-        >
-          Continue
-        </button>
       </div>
     </>
   )

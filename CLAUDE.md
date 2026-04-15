@@ -259,21 +259,30 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 **阶段 5 — 后端功能完善（部分完成）**
 
-- 5.1 ✅ System prompt 优化（角色定义、JSON 输出格式、多语言 reason、忽略浏览器 UI 元素、非选择题处理）
+- 5.1 ✅ System prompt 全面重写（7 种题型支持：单选/多选/判断/填空/计算/排序/简答，学生语气控制，reason 长度约束）
 - 5.2 ❌ 模型抽象层 — 跳过（YAGNI，当前只用一个模型）
 - 5.3 ❌ 流式响应 — 跳过（分析耗时短，投入产出比低）
 - 5.4 ❌ 历史记录 — 砍掉（核心场景不需要）
 
+**阶段 5.5 — 部署后端 + 打包 beta（已完成）**
+
+- 5.5.1 ✅ 后端 API key 认证（x-api-key header，SNAPCUE_API_KEY 环境变量，未设置时跳过验证兼容本地开发）
+- 5.5.2 ✅ Electron 环境变量配置（electron/config.ts + import.meta.env，electron-vite envPrefix 按 mode 加载 .env.development / .env.production）
+- 5.5.3 ✅ electron-builder 打包 .dmg（mac.identity=null 跳过签名，sharp asarUnpack，自定义 app icon）
+- 5.5.4 ❌ 硬编码 credits — 暂未实现
+
+**阶段 5.6 — Answer Panel 重构 + 品牌打磨**
+
+- 5.6.1 ✅ Answer Panel 自适应答案长度（CSS truncation 检测，长答案展开全文+reason 分隔显示，copy 按钮+checkmark 反馈）
+- 5.6.2 ✅ Onboarding 布局重构（按钮+dots 提取到共享底部区域，三页位置一致，Welcome 页加 logo）
+- 5.6.3 ✅ App icon 制作（build/icon.png → sharp trim+resize → sips iconset → iconutil .icns）
+- 5.6.4 ✅ Tray icon 品牌化（ghost 默认 icon 使用 logo 原图生成 PNG template image，替代手绘 SVG）
+- 5.6.5 ✅ Settings icon 预览更新（ghost 选项使用 logo-white.png，排序第一位）
+- 5.6.6 ✅ Onboarding timer 内存泄漏修复（ShortcutsPage 每个 cycle 清理上一批 timers）
+
 ### ⬜ 下一步开发计划
 
 > 开发原则：先把核心体验打磨到位，再接入付费系统。
-
-**阶段 5.5 — 部署后端 + 打包 beta**
-
-- 5.5.1 后端部署（Fly.io / Railway），临时 API key 防滥��
-- 5.5.2 Electron 指向远程后端（环境变量切换 dev/prod）
-- 5.5.3 electron-builder 出 .dmg，先不签名不公证，5-10 个测试用户手动分发
-- 5.5.4 硬编码 credits（临时大数字，不接 Stripe）
 
 **阶段 6 — 认证 + 付费系统**
 
@@ -294,9 +303,11 @@ snapcue/
 ├── electron/              # Electron main process
 │   ├── main.ts            # App 生命周期 + hotkeys + onboarding 窗口启动
 │   ├── tray.ts            # Tray icon + dropdown window + tray 状态管理 + toggleDropdown
-│   ├── tray-icons.ts      # SVG→sharp→nativeImage 生成 4 种 tray 图标 + analyzing 暗淡版本
+│   ├── tray-icons.ts      # SVG→sharp→nativeImage 生成 tray 图标 + ghost 使用 logo PNG template image
 │   ├── screenshot.ts      # 截图捕获 + sharp 缩放 + 权限检测
 │   ├── ipc.ts             # 所有 IPC handler 注册 + 快捷键管理 + 截图→分析流程
+│   ├── config.ts          # API baseUrl + apiKey 配置（import.meta.env，按 mode 加载）
+│   ├── env.d.ts           # import.meta.env 类型声明（SNAPCUE_API_URL/KEY）
 │   ├── preload.ts         # contextBridge → window.snapcue
 │   ├── store.ts           # JSON 文件设置持久化（app.getPath('userData')）
 │   └── onboarding.ts      # Onboarding BrowserWindow 创建/关闭
@@ -305,7 +316,9 @@ snapcue/
 ├── src/                   # React renderer（dropdown UI + onboarding）
 │   ├── main.tsx           # 入口：hash 路由分发 dropdown vs onboarding
 │   ├── App.tsx            # Dropdown 主组件（状态机 + ErrorPanel）
-│   ├── answer-panel.tsx   # 答案面板（accordion 展开/收起 + 空状态提示）
+│   ├── answer-panel.tsx   # 答案面板（自适应长度、truncation 检测、展开全文、copy 按钮）
+│   ├── assets/
+│   │   └── logo-white.png # 白色透明底 logo（512px，onboarding + settings 预览用）
 │   ├── env.d.ts           # SnapCueAPI + Window.snapcue 类型
 │   ├── use-auto-height.ts # 自动高度 + 防抖（30ms）
 │   ├── index.css          # 全局样式（动画 keyframes、滚动条隐藏）
@@ -320,8 +333,14 @@ snapcue/
 │   └── src/
 │       ├── server.ts      # Fastify app 入口（bodyLimit 10MB）
 │       └── routes/
-│           ├── analyze.ts # POST /analyze（GPT-5 mini，max_completion_tokens 4096）
+│           ├── analyze.ts # POST /analyze（GPT-5 mini，7 种题型，max_completion_tokens 4096）
 │           └── health.ts  # GET /health
+├── build/                 # App icon
+│   ├── icon.png           # 1024×1024 源图（ghost logo + 白底）
+│   └── icon.icns          # macOS icon（由 icon.png 生成）
+├── resources/             # Tray icon 资源
+│   ├── trayIconGhost*.png # Ghost tray icon（logo 原图生成，22px + 44px@2x）
+│   └── iconTemplate*.png  # 默认 tray icon template
 ├── package.json
 └── CLAUDE.md              # ← 本文件
 ```
