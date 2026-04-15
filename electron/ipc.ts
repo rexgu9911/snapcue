@@ -11,8 +11,7 @@ import { sendToDropdown, updateTrayIcon, setTrayState, toggleDropdown } from './
 import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
-
-const API_BASE = 'http://localhost:3001'
+import { config } from './config'
 const API_TIMEOUT_MS = 30_000
 
 interface AnalyzeResponse {
@@ -21,9 +20,14 @@ interface AnalyzeResponse {
 }
 
 async function analyzeImage(base64: string): Promise<AnswerItem[]> {
-  const fetchPromise = net.fetch(`${API_BASE}/analyze`, {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (config.apiKey) {
+    headers['x-api-key'] = config.apiKey
+  }
+
+  const fetchPromise = net.fetch(`${config.apiBaseUrl}/analyze`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ image: base64 }),
   })
 

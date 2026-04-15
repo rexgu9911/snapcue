@@ -14,6 +14,17 @@ export async function buildApp() {
     origin: [/^http:\/\/localhost(:\d+)?$/],
   })
 
+  // API key auth — skip if SNAPCUE_API_KEY is not set (local dev without auth)
+  const snapcueApiKey = process.env['SNAPCUE_API_KEY']
+  if (snapcueApiKey) {
+    app.addHook('onRequest', async (request, reply) => {
+      if (request.method === 'GET' && request.url === '/health') return
+      if (request.headers['x-api-key'] !== snapcueApiKey) {
+        return reply.status(401).send({ error: 'unauthorized' })
+      }
+    })
+  }
+
   app.register(analyzeRoute)
   app.register(healthRoute)
 
