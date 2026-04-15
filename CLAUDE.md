@@ -35,6 +35,7 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - `npm test` — vitest
 - `cd backend && npm run dev` — 后端开发服务器（端口 3001）
 - `cd backend && npm test` — 后端测试
+- `npm run pack` — 生产构建 + 打包 .dmg（输出到 dist/）
 - `rm ~/Library/Application\ Support/snapcue/settings.json && npm run dev` — 重置设置并重启（重新触发 onboarding）
 
 ## Code Style
@@ -55,7 +56,7 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 快捷键默认 ⌃⌥S（静默）/ ⌃⌥A（区域）/ ⌃⌥D（toggle dropdown），用户可在 Settings 页自定义，持久化到 JSON 文件
 - Dropdown 用户主动 dismiss（click outside / Esc / 切换 app）
 - 设置持久化用 app.getPath('userData')/settings.json，无额外 npm 依赖
-- Tray icon 支持 8 种样式（dot/book/bolt/square/input/shield/cn/ghost），通过 SVG→sharp→nativeImage 动态生成
+- Tray icon 支持 8 种样式（ghost/dot/book/bolt/square/input/shield/cn），ghost 默认使用 logo 原图 PNG template image，其余 SVG→sharp→nativeImage 动态生成
 - 截图只存内存（lastScreenshot 变量），不写磁盘，下次截图覆盖，app 退出即丢弃
 - Tray icon 状态反馈：idle（正常）→ analyzing（降低 opacity 变暗淡）→ done（恢复正常，3 秒后回到 idle）
 - app.dock.hide() — 纯 menu bar app（onboarding 期间临时显示 dock）
@@ -68,6 +69,15 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - ⌃⌥D toggle dropdown 已重新实现：直接对 dropdown BrowserWindow 做 show/hide，不操作 tray，避开之前 tray destroy/recreate 的 bug
 - Onboarding 不做权限检测，永远显示引导页（首次安装用户 99% 没有授权，且 macOS 15 检测 API 不可靠）
 - Onboarding 完成标记仅在用户点击 "Continue" 时写入，点击 "Open System Settings" 不标记（防止 macOS 强制重启后用户看不到任何窗口）
+- 后端部署平台选择 Railway（自动部署、免费额度够 beta、不需要 Dockerfile）
+- API 认证：x-api-key header，SNAPCUE_API_KEY 环境变量，未设置时跳过验证（本地开发兼容）
+- 环境变量通过 Vite envPrefix 'SNAPCUE_' 在构建时注入，import.meta.env.SNAPCUE_API_URL / SNAPCUE_API_KEY
+- electron-builder 打包：sharp 和 @img 需要 asarUnpack，mac.identity 设为 null 跳过签名
+- App icon: 白色背景 + 深色幽灵角色，macOS 自动应用 squircle 蒙版
+- 全题型支持后 answer 字段不再限于字母，前端根据 answer 长度自适应展示（scrollWidth 检测截断）
+- 判断题从 T/F 改为 True/False 完整单词，避免与选项字母混淆
+- 填空题多个空用 " | " 分隔
+- 简答题 reason 为空字符串，answer 本身就是完整可提交的回答
 
 ## Onboarding 流程
 
@@ -257,19 +267,19 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 4.9.6 ✅ Idle view key cap 重设计（主快捷键用键盘按键视觉风格展示，次要快捷键简化文字）
 - 4.9.7 ✅ Tray icon 扩展至 8 种（新增 input/shield/cn/ghost）
 
-**阶段 5 — 后端功能完善（部分完成）**
+**阶段 5 — 后端功能完善**
 
-- 5.1 ✅ System prompt 全面重写（7 种题型支持：单选/多选/判断/填空/计算/排序/简答，学生语气控制，reason 长度约束）
+- 5.1 ✅ System prompt 扩展为支持全部题型（单选、多选、判断、填空、简答、计算、排序），简答题去 AI 味指令（禁止套话 "Furthermore/In conclusion" 等、学生语气、长度自适应 2-4 句、不重复问题），reason 1 句上限，计算题 reason 用公式紧凑记法
 - 5.2 ❌ 模型抽象层 — 跳过（YAGNI，当前只用一个模型）
 - 5.3 ❌ 流式响应 — 跳过（分析耗时短，投入产出比低）
 - 5.4 ❌ 历史记录 — 砍掉（核心场景不需要）
 
 **阶段 5.5 — 部署后端 + 打包 beta（已完成）**
 
-- 5.5.1 ✅ 后端 API key 认证（x-api-key header，SNAPCUE_API_KEY 环境变量，未设置时跳过验证兼容本地开发）
-- 5.5.2 ✅ Electron 环境变量配置（electron/config.ts + import.meta.env，electron-vite envPrefix 按 mode 加载 .env.development / .env.production）
-- 5.5.3 ✅ electron-builder 打包 .dmg（mac.identity=null 跳过签名，sharp asarUnpack，自定义 app icon）
-- 5.5.4 ❌ 硬编码 credits — 暂未实现
+- 5.5.1 ✅ 后端部署到 Railway（snapcue-production.up.railway.app），端口自动分配（PORT 环境变量）
+- 5.5.2 ✅ Electron 指向远程后端（.env.development / .env.production，Vite envPrefix 注入 import.meta.env）
+- 5.5.3 ✅ electron-builder 打包 .dmg（arm64，未签名未公证，sharp asarUnpack 处理）
+- 5.5.4 ✅ API key 防滥用（x-api-key header，后端 onRequest hook，GET /health 跳过验证）
 
 **阶段 5.6 — Answer Panel 重构 + 品牌打磨**
 
@@ -286,15 +296,24 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 **阶段 6 — 认证 + 付费系统**
 
-- 6.1 用户认证（Supabase Auth，JWT + refresh token rotation，Electron safeStorage）
-- 6.2 Credit 管理（扣减逻辑：1-3题=1credit, 4-6题=2, 7-9题=3, 10+=4）
-- 6.3 Stripe 支付（Checkout + Webhook，三档套��，新用户送 10 free credits）
+- 6.1 用户认证（Supabase Auth）
+- 6.2 使用额度管理（免费 5 次 + 订阅无限 + credit 扣减）
+- 6.3 Stripe 支付（周卡 $5.99 / 月卡 $12.99 / credit 包三档）
+- 6.4 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
 **阶段 7 — 打包发布**
 
-- 7.1 electron-builder 打包 .dmg
-- 7.2 代码签名 + Apple 公证
-- 7.3 最终检查（lint、test、README、.env.example、.gitignore）
+- 7.1 代码签名 + Apple 公证
+- 7.2 最终检查（lint、test、README、.env.example、.gitignore）
+
+## 定价方案
+
+- 免费：新用户 5 次分析
+- 周卡 $5.99 — 7 天无限使用
+- 月卡 $12.99 — 30 天无限使用
+- Credit 包：30 credits $4.99 / 100 credits $12.99 / 300 credits $29.99
+- 1 credit = 1 次截图分析（不管图中几道题）
+- 订阅用户每日上限 50 次分析（防滥用）
 
 ## 项目结构
 
@@ -341,6 +360,12 @@ snapcue/
 ├── resources/             # Tray icon 资源
 │   ├── trayIconGhost*.png # Ghost tray icon（logo 原图生成，22px + 44px@2x）
 │   └── iconTemplate*.png  # 默认 tray icon template
+├── .env.development       # 开发环境变量（localhost:3001，gitignored）
+├── .env.production        # 生产环境变量（Railway URL + API key，gitignored）
 ├── package.json
 └── CLAUDE.md              # ← 本文件
 ```
+
+### 相关项目
+
+- snapcue-web/（独立仓库）— 产品官网，Next.js + Tailwind，部署在 Vercel
