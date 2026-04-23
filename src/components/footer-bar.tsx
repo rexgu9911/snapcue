@@ -1,8 +1,9 @@
 interface FooterBarProps {
   onOpenSettings: () => void
+  user: AuthUser | null
 }
 
-export function FooterBar({ onOpenSettings }: FooterBarProps) {
+export function FooterBar({ onOpenSettings, user }: FooterBarProps) {
   return (
     <div
       className="flex shrink-0 items-center justify-between"
@@ -14,7 +15,7 @@ export function FooterBar({ onOpenSettings }: FooterBarProps) {
       {/* Left side reserved for future credits display */}
       <span />
 
-      {/* Right side: Settings + Quit */}
+      {/* Right side: Settings + Avatar + Quit */}
       <div className="flex items-center" style={{ gap: '8px' }}>
         <button
           onClick={onOpenSettings}
@@ -46,6 +47,26 @@ export function FooterBar({ onOpenSettings }: FooterBarProps) {
             <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </button>
+
+        {user && (
+          <div
+            title={user.email}
+            className="flex items-center justify-center"
+            style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.08)',
+              fontSize: '10px',
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.55)',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+            }}
+          >
+            {user.email.charAt(0)}
+          </div>
+        )}
 
         <button
           onClick={() => window.snapcue.quit()}

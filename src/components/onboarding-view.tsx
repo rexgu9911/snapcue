@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import logoWhite from '../assets/logo-white.png'
 
-type Page = 0 | 1 | 2
+type Page = 0 | 1 | 2 | 3
 
 export function OnboardingView() {
   const [page, setPage] = useState<Page>(0)
+
+  // Auto-complete onboarding when the magic-link deep link finalizes sign-in.
+  useEffect(() => {
+    return window.snapcue.onAuthSignedIn(() => {
+      window.snapcue.completeOnboarding()
+    })
+  }, [])
 
   return (
     <div
@@ -31,19 +38,13 @@ export function OnboardingView() {
         style={{ padding: '0 28px', animation: 'fadeIn 150ms ease', minHeight: 0 }}
       >
         {page === 0 && <WelcomeContent />}
-        {page === 1 && (
-          <ShortcutsContent
-            onBack={() => setPage(0)}
-          />
-        )}
+        {page === 1 && <ShortcutsContent onBack={() => setPage(0)} />}
         {page === 2 && <PermissionContent onBack={() => setPage(1)} />}
+        {page === 3 && <SignInContent onBack={() => setPage(2)} />}
       </div>
 
       {/* Fixed bottom: button + dots — same position on all pages */}
-      <div
-        className="flex shrink-0 flex-col items-center"
-        style={{ padding: '0 28px 8px' }}
-      >
+      <div className="flex shrink-0 flex-col items-center" style={{ padding: '0 28px 8px' }}>
         {page === 0 && (
           <OnboardingButton onClick={() => setPage(1)} wide>
             Get Started
@@ -59,7 +60,7 @@ export function OnboardingView() {
         )}
         {page === 2 && (
           <button
-            onClick={() => window.snapcue.completeOnboarding()}
+            onClick={() => setPage(3)}
             className="transition-colors duration-200"
             style={{
               fontSize: '12px',
@@ -80,7 +81,26 @@ export function OnboardingView() {
               e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
             }}
           >
-            Continue without permission →
+            Continue →
+          </button>
+        )}
+        {page === 3 && (
+          <button
+            onClick={() => window.snapcue.completeOnboarding()}
+            className="transition-colors duration-200"
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.35)',
+              background: 'transparent',
+              border: 'none',
+              padding: '6px 16px',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}
+          >
+            Skip for now
           </button>
         )}
         <PageDots current={page} />
@@ -93,8 +113,11 @@ export function OnboardingView() {
 
 function PageDots({ current }: { current: number }) {
   return (
-    <div className="flex items-center justify-center gap-[8px]" style={{ paddingTop: '14px', paddingBottom: '10px' }}>
-      {[0, 1, 2].map((i) => (
+    <div
+      className="flex items-center justify-center gap-[8px]"
+      style={{ paddingTop: '14px', paddingBottom: '10px' }}
+    >
+      {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
           className="rounded-full transition-colors duration-300"
@@ -138,8 +161,7 @@ function WelcomeContent() {
             marginTop: '6px',
           }}
         >
-          Screenshot the hard part.
-          The shortcut to every answer.
+          Screenshot the hard part. The shortcut to every answer.
         </p>
       </div>
 
@@ -679,8 +701,8 @@ function PermissionContent({ onBack }: { onBack: () => void }) {
               marginTop: '6px',
             }}
           >
-            SnapCue needs screen recording access to capture. Click below to open settings
-            and toggle it on.
+            SnapCue needs screen recording access to capture. Click below to open settings and
+            toggle it on.
           </p>
           <button
             onClick={() => window.snapcue.openPermissionSettings()}
@@ -826,6 +848,144 @@ function PermissionContent({ onBack }: { onBack: () => void }) {
             })}
           </div>
         </div>
+      </div>
+    </>
+  )
+}
+
+// ── Page 4: Sign In ──────────────────────────────────────────────────────────
+
+function SignInContent({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const canSubmit = status !== 'sending' && status !== 'sent' && email.trim().length > 0
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return
+    setStatus('sending')
+    setErrorMsg('')
+    const res = await window.snapcue.signIn(email.trim())
+    if (res.success) {
+      setStatus('sent')
+    } else {
+      setStatus('error')
+      setErrorMsg(res.error ?? 'Failed to send magic link')
+    }
+  }
+
+  return (
+    <>
+      <BackButton onClick={onBack} />
+
+      <div
+        className="flex flex-1 flex-col items-center justify-center"
+        style={{ gap: '16px', maxWidth: '320px', minHeight: 0 }}
+      >
+        <div className="flex flex-col items-center text-center" style={{ gap: '6px' }}>
+          <h2
+            style={{
+              fontSize: '18px',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.9)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Sign in to sync credits across devices
+          </h2>
+          <p
+            style={{
+              fontSize: '12px',
+              color: 'rgba(255,255,255,0.4)',
+              lineHeight: 1.5,
+            }}
+          >
+            We&apos;ll email you a magic link. No password needed.
+          </p>
+        </div>
+
+        {status === 'sent' ? (
+          <div
+            style={{
+              marginTop: '4px',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              background: 'rgba(34,197,94,0.08)',
+              border: '1px solid rgba(34,197,94,0.2)',
+              fontSize: '12px',
+              color: 'rgba(134,239,172,0.9)',
+              textAlign: 'center',
+            }}
+          >
+            Check your email for the magic link.
+          </div>
+        ) : (
+          <div className="flex flex-col" style={{ width: '260px', gap: '8px' }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (status === 'error') setStatus('idle')
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSubmit()
+              }}
+              placeholder="you@example.com"
+              autoFocus
+              autoComplete="email"
+              spellCheck={false}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.9)',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '8px',
+                outline: 'none',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)')}
+              onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="transition-colors duration-200"
+              style={{
+                width: '100%',
+                padding: '8px 20px',
+                background: canSubmit ? '#EDEDED' : 'rgba(255,255,255,0.12)',
+                color: canSubmit ? '#0A0A0A' : 'rgba(255,255,255,0.4)',
+                fontSize: '13px',
+                fontWeight: 500,
+                borderRadius: '8px',
+                border: 'none',
+                cursor: canSubmit ? 'pointer' : 'default',
+              }}
+              onMouseEnter={(e) => {
+                if (canSubmit) e.currentTarget.style.background = '#FFFFFF'
+              }}
+              onMouseLeave={(e) => {
+                if (canSubmit) e.currentTarget.style.background = '#EDEDED'
+              }}
+            >
+              {status === 'sending' ? 'Sending...' : 'Send Magic Link'}
+            </button>
+            {status === 'error' && (
+              <p
+                style={{
+                  fontSize: '11px',
+                  color: 'rgba(239,68,68,0.8)',
+                  textAlign: 'center',
+                }}
+              >
+                {errorMsg}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </>
   )

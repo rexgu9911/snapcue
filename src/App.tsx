@@ -49,12 +49,26 @@ export function App() {
   const [answers, setAnswers] = useState<AnswerItem[]>([])
   const [view, setView] = useState<View>('main')
   const [hasFirstCapture, setHasFirstCapture] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const containerRef = useAutoHeight<HTMLDivElement>()
 
   useEffect(() => {
     window.snapcue.getSettings().then((s) => {
       setHasFirstCapture(!!s.hasFirstCapture)
     })
+    window.snapcue.getCurrentUser().then(setUser)
+  }, [])
+
+  useEffect(() => {
+    const unsubs = [
+      window.snapcue.onAuthSignedIn(() => {
+        window.snapcue.getCurrentUser().then(setUser)
+      }),
+      window.snapcue.onAuthSignedOut(() => {
+        setUser(null)
+      }),
+    ]
+    return () => unsubs.forEach((fn) => fn())
   }, [])
 
   useEffect(() => {
@@ -111,7 +125,7 @@ export function App() {
       {/* Content area */}
       <div className="min-h-0 flex-1" key={view} style={{ animation: 'fadeIn 150ms ease' }}>
         {view === 'settings' ? (
-          <SettingsView onBack={() => setView('main')} />
+          <SettingsView onBack={() => setView('main')} user={user} />
         ) : (
           <>
             {status === 'ready' && <IdleView hasFirstCapture={hasFirstCapture} />}
@@ -128,7 +142,7 @@ export function App() {
       </div>
 
       {/* Footer — only on main view */}
-      {view !== 'settings' && <FooterBar onOpenSettings={() => setView('settings')} />}
+      {view !== 'settings' && <FooterBar onOpenSettings={() => setView('settings')} user={user} />}
     </div>
   )
 }

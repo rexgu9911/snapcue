@@ -4,6 +4,8 @@ dist/
 .DS_Store
 *.dmg
 *.zip
+.env
 *.env
 *.env.*
 .env.*
+!.env.example

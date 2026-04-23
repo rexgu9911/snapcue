@@ -3,6 +3,7 @@ import logoWhite from '../assets/logo-white.png'
 
 interface SettingsViewProps {
   onBack: () => void
+  user: AuthUser | null
 }
 
 type RecordingField = 'silentCapture' | 'regionSelect' | 'toggleDropdown' | null
@@ -53,8 +54,12 @@ function eventToAccelerator(e: KeyboardEvent): string | null {
 
 const ICON_OPTIONS: TrayIcon[] = ['ghost', 'dot', 'book', 'bolt', 'square', 'input', 'shield', 'cn']
 
-export function SettingsView({ onBack }: SettingsViewProps) {
-  const [hotkeys, setHotkeys] = useState({ silentCapture: '', regionSelect: '', toggleDropdown: '' })
+export function SettingsView({ onBack, user }: SettingsViewProps) {
+  const [hotkeys, setHotkeys] = useState({
+    silentCapture: '',
+    regionSelect: '',
+    toggleDropdown: '',
+  })
   const [trayIcon, setTrayIcon] = useState<TrayIcon>('dot')
   const [recording, setRecording] = useState<RecordingField>(null)
   const [conflict, setConflict] = useState<RecordingField>(null)
@@ -155,6 +160,9 @@ export function SettingsView({ onBack }: SettingsViewProps) {
         </span>
       </button>
 
+      {/* Account section */}
+      <AccountSection user={user} />
+
       {/* Shortcuts section */}
       <div style={{ padding: '4px 10px 4px' }}>
         <div
@@ -246,6 +254,165 @@ export function SettingsView({ onBack }: SettingsViewProps) {
           Quit
         </button>
       </div>
+    </div>
+  )
+}
+
+function truncateEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!domain) return email
+  if (local.length <= 8) return email
+  return `${local.slice(0, 8)}...@${domain}`
+}
+
+function AccountSection({ user }: { user: AuthUser | null }) {
+  const [expanded, setExpanded] = useState(false)
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // Collapse the sign-in form whenever we flip between signed-in / signed-out.
+  useEffect(() => {
+    setExpanded(false)
+    setEmail('')
+    setStatus('idle')
+    setErrorMsg('')
+  }, [user])
+
+  const canSubmit = status !== 'sending' && status !== 'sent' && email.trim().length > 0
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return
+    setStatus('sending')
+    setErrorMsg('')
+    const res = await window.snapcue.signIn(email.trim())
+    if (res.success) {
+      setStatus('sent')
+    } else {
+      setStatus('error')
+      setErrorMsg(res.error ?? 'Failed to send link')
+    }
+  }
+
+  return (
+    <div style={{ padding: '4px 10px 4px' }}>
+      <div
+        style={{
+          fontSize: '11px',
+          letterSpacing: '0.5px',
+          color: 'rgba(255,255,255,0.3)',
+          marginTop: '8px',
+          marginBottom: '4px',
+          textTransform: 'uppercase' as const,
+        }}
+      >
+        Account
+      </div>
+
+      {user ? (
+        <div className="flex items-center justify-between" style={{ padding: '3px 0', gap: '8px' }}>
+          <span
+            title={user.email}
+            style={{
+              fontSize: '11px',
+              color: 'rgba(255,255,255,0.6)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1,
+            }}
+          >
+            {truncateEmail(user.email)}
+          </span>
+          <button
+            onClick={() => window.snapcue.signOut()}
+            style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+          >
+            Sign out
+          </button>
+        </div>
+      ) : !expanded ? (
+        <div className="flex items-center justify-between" style={{ padding: '3px 0' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Not signed in</span>
+          <button
+            onClick={() => setExpanded(true)}
+            className="font-mono"
+            style={{
+              fontSize: '11px',
+              color: 'rgba(255,255,255,0.4)',
+              background: 'rgba(255,255,255,0.06)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+          >
+            Sign in
+          </button>
+        </div>
+      ) : status === 'sent' ? (
+        <p
+          style={{
+            fontSize: '11px',
+            color: 'rgba(134,239,172,0.85)',
+            padding: '4px 0 2px',
+          }}
+        >
+          Check your email.
+        </p>
+      ) : (
+        <div className="flex flex-col" style={{ gap: '4px', padding: '2px 0' }}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (status === 'error') setStatus('idle')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSubmit()
+              if (e.key === 'Escape') setExpanded(false)
+            }}
+            placeholder="you@example.com"
+            autoFocus
+            autoComplete="email"
+            spellCheck={false}
+            style={{
+              width: '100%',
+              padding: '4px 8px',
+              fontSize: '11px',
+              color: 'rgba(255,255,255,0.9)',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '4px',
+              outline: 'none',
+            }}
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            style={{
+              width: '100%',
+              padding: '4px 0',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: 500,
+              color: canSubmit ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
+              background: canSubmit ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+              cursor: canSubmit ? 'pointer' : 'default',
+              transition: 'background 0.2s',
+            }}
+          >
+            {status === 'sending' ? 'Sending...' : 'Send Magic Link'}
+          </button>
+          {status === 'error' && (
+            <p style={{ fontSize: '10px', color: 'rgba(239,68,68,0.8)' }}>{errorMsg}</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -354,7 +521,15 @@ function IconPreview({ icon }: { icon: TrayIcon }) {
     case 'input':
       return (
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color }}>
-          <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.1" />
+          <rect
+            x="2.5"
+            y="2.5"
+            width="11"
+            height="11"
+            rx="2"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
           <text
             x="8"
             y="11.5"

@@ -52,6 +52,8 @@ export const analyzeRoute: FastifyPluginAsync = async (app) => {
   const client = new OpenAI({ apiKey })
 
   app.post<{ Body: AnalyzeBody }>('/analyze', async (request, reply) => {
+    request.log.info(`[analyze] user: ${request.user?.id ?? 'anonymous'}`)
+
     const { image } = request.body
 
     if (!image || typeof image !== 'string') {

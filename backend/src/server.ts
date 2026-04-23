@@ -3,6 +3,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { analyzeRoute } from './routes/analyze.js'
 import { healthRoute } from './routes/health.js'
+import { authPlugin } from './middleware/auth.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -25,6 +26,7 @@ export async function buildApp() {
     })
   }
 
+  await app.register(authPlugin)
   app.register(analyzeRoute)
   app.register(healthRoute)
 

@@ -1,4 +1,4 @@
-import { app, ipcMain, shell, net, globalShortcut } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, net, globalShortcut } from 'electron'
 import {
   IPC,
   type CaptureMode,
@@ -6,12 +6,15 @@ import {
   type AnswerItem,
   type CaptureError,
   type ErrorType,
+  type AuthUser,
+  type SignInResult,
 } from '../shared/types'
 import { sendToDropdown, updateTrayIcon, setTrayState, toggleDropdown } from './tray'
 import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 import { config } from './config'
+import { clearStoredSession, getCurrentUser, getStoredSession, signInWithMagicLink } from './auth'
 const API_TIMEOUT_MS = 30_000
 
 interface AnalyzeResponse {
@@ -23,6 +26,11 @@ async function analyzeImage(base64: string): Promise<AnswerItem[]> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (config.apiKey) {
     headers['x-api-key'] = config.apiKey
+  }
+
+  const session = await getStoredSession()
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`
   }
 
   const fetchPromise = net.fetch(`${config.apiBaseUrl}/analyze`, {
@@ -253,6 +261,23 @@ export async function initIpc(): Promise<void> {
   ipcMain.handle(IPC.ONBOARDING_COMPLETE, () => {
     applySettingsChange({ hasOnboarded: true })
     closeOnboardingWindow()
+  })
+
+  ipcMain.handle(IPC.AUTH_GET_CURRENT_USER, async (): Promise<AuthUser | null> => {
+    const user = await getCurrentUser()
+    if (!user?.email) return null
+    return { id: user.id, email: user.email }
+  })
+
+  ipcMain.handle(IPC.AUTH_SIGN_IN, async (_event, email: string): Promise<SignInResult> => {
+    return signInWithMagicLink(email)
+  })
+
+  ipcMain.handle(IPC.AUTH_SIGN_OUT, async () => {
+    await clearStoredSession()
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send(IPC.AUTH_SIGNED_OUT)
+    }
   })
 
   // Register global shortcuts from persisted settings

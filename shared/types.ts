@@ -47,6 +47,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hasOnboarded: false,
 }
 
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string
+  email: string
+}
+
+export interface SignInResult {
+  success: boolean
+  error?: string
+}
+
 // ── IPC Channel Definitions ──────────────────────────────────────────────────
 //
 // Every IPC channel used in the app is defined here so both the main process
@@ -62,6 +74,8 @@ export interface MainToRendererEvents {
   'capture:error': CaptureError
   'credits:update': number
   'permission:status': boolean
+  'auth:signedIn': { email: string }
+  'auth:signedOut': void
 }
 
 /**
@@ -86,6 +100,9 @@ export interface RendererToMainCommands {
   'permission:recheck': { args: void; return: boolean }
   'app:quit': { args: void; return: void }
   'onboarding:complete': { args: void; return: void }
+  'auth:getCurrentUser': { args: void; return: AuthUser | null }
+  'auth:signIn': { args: string; return: SignInResult }
+  'auth:signOut': { args: void; return: void }
 }
 
 // ── Channel name constants (prevents typos) ──────────────────────────────────
@@ -97,6 +114,8 @@ export const IPC = {
   CAPTURE_ERROR: 'capture:error',
   CREDITS_UPDATE: 'credits:update',
   PERMISSION_STATUS: 'permission:status',
+  AUTH_SIGNED_IN: 'auth:signedIn',
+  AUTH_SIGNED_OUT: 'auth:signedOut',
 
   // Renderer → Main (fire-and-forget)
   DROPDOWN_HIDE: 'dropdown:hide',
@@ -111,4 +130,7 @@ export const IPC = {
   PERMISSION_RECHECK: 'permission:recheck',
   APP_QUIT: 'app:quit',
   ONBOARDING_COMPLETE: 'onboarding:complete',
+  AUTH_GET_CURRENT_USER: 'auth:getCurrentUser',
+  AUTH_SIGN_IN: 'auth:signIn',
+  AUTH_SIGN_OUT: 'auth:signOut',
 } as const

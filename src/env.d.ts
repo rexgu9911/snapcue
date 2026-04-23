@@ -7,6 +7,8 @@ type AnswerItem = import('../shared/types').AnswerItem
 type CaptureError = import('../shared/types').CaptureError
 type ErrorType = import('../shared/types').ErrorType
 type TrayIcon = import('../shared/types').TrayIcon
+type AuthUser = import('../shared/types').AuthUser
+type SignInResult = import('../shared/types').SignInResult
 
 interface SnapCueAPI {
   platform: string
@@ -39,6 +41,13 @@ interface SnapCueAPI {
 
   // Onboarding
   completeOnboarding: () => Promise<void>
+
+  // Auth
+  getCurrentUser: () => Promise<AuthUser | null>
+  signIn: (email: string) => Promise<SignInResult>
+  signOut: () => Promise<void>
+  onAuthSignedIn: (cb: (payload: { email: string }) => void) => () => void
+  onAuthSignedOut: (cb: () => void) => () => void
 }
 
 interface Window {

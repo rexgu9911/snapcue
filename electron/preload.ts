@@ -4,7 +4,9 @@ import {
   type CaptureMode,
   type AppSettings,
   type AnswerItem,
+  type AuthUser,
   type CaptureError,
+  type SignInResult,
 } from '../shared/types'
 
 contextBridge.exposeInMainWorld('snapcue', {
@@ -60,4 +62,19 @@ contextBridge.exposeInMainWorld('snapcue', {
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   completeOnboarding: () => ipcRenderer.invoke(IPC.ONBOARDING_COMPLETE),
+
+  // ── Auth ────────────────────────────────────────────────────────────────
+  getCurrentUser: () => ipcRenderer.invoke(IPC.AUTH_GET_CURRENT_USER) as Promise<AuthUser | null>,
+  signIn: (email: string) => ipcRenderer.invoke(IPC.AUTH_SIGN_IN, email) as Promise<SignInResult>,
+  signOut: () => ipcRenderer.invoke(IPC.AUTH_SIGN_OUT) as Promise<void>,
+  onAuthSignedIn: (cb: (payload: { email: string }) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, payload: { email: string }) => cb(payload)
+    ipcRenderer.on(IPC.AUTH_SIGNED_IN, listener)
+    return () => ipcRenderer.removeListener(IPC.AUTH_SIGNED_IN, listener)
+  },
+  onAuthSignedOut: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on(IPC.AUTH_SIGNED_OUT, listener)
+    return () => ipcRenderer.removeListener(IPC.AUTH_SIGNED_OUT, listener)
+  },
 })
