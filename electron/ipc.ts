@@ -10,7 +10,13 @@ import {
   type SignInResult,
   type CreditsMeta,
 } from '../shared/types'
-import { sendToDropdown, updateTrayIcon, setTrayState, toggleDropdown } from './tray'
+import {
+  sendToDropdown,
+  updateTrayIcon,
+  setTrayState,
+  toggleDropdown,
+  setOnDropdownShow,
+} from './tray'
 import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
@@ -407,6 +413,13 @@ export async function initIpc(): Promise<void> {
   // Prefetch credits if already signed in — footer / settings render
   // with a real number instead of a blank on app launch.
   void refreshCreditsMeta()
+
+  // Every time the dropdown becomes visible, re-pull /me so the footer
+  // reflects server-side changes that happened while the window was hidden
+  // (upgrades in the browser, device sync, manual SQL, etc.).
+  setOnDropdownShow(() => {
+    void refreshCreditsMeta()
+  })
 }
 
 export function getSettings(): AppSettings {

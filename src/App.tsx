@@ -10,7 +10,144 @@ import { LoadingView } from './components/loading-view'
 type Status = 'ready' | 'loading' | 'result' | 'error' | 'no-permission'
 type View = 'main' | 'settings'
 
-function ErrorPanel({ error }: { error: CaptureError }) {
+interface ErrorPanelProps {
+  error: CaptureError
+  meta: CreditsMeta | null
+  onOpenSettings: () => void
+  onDismiss: () => void
+}
+
+function ErrorPanel({ error, meta, onOpenSettings, onDismiss }: ErrorPanelProps) {
+  if (error.type === 'auth_required') {
+    return (
+      <div style={{ padding: '10px 12px' }}>
+        <p
+          style={{
+            fontSize: '13px',
+            color: 'rgba(255,255,255,0.6)',
+            marginBottom: '4px',
+          }}
+        >
+          Sign in to continue
+        </p>
+        <p
+          style={{
+            fontSize: '10px',
+            color: 'rgba(255,255,255,0.3)',
+            marginBottom: '10px',
+          }}
+        >
+          Magic link · no password
+        </p>
+        <button
+          disabled
+          className="w-full"
+          style={{
+            padding: '5px 0',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.35)',
+            background: 'rgba(255,255,255,0.08)',
+            cursor: 'default',
+          }}
+        >
+          Sign in
+        </button>
+      </div>
+    )
+  }
+
+  if (error.type === 'no_credits') {
+    return (
+      <div style={{ padding: '10px 12px' }}>
+        <p
+          style={{
+            fontSize: '13px',
+            color: 'rgba(255,255,255,0.6)',
+            marginBottom: '10px',
+          }}
+        >
+          You&apos;re out of credits
+        </p>
+        <button
+          onClick={() => window.snapcue.openPricing()}
+          className="w-full transition-colors"
+          style={{
+            padding: '5px 0',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(16,185,129,0.9)',
+            background: 'rgba(16,185,129,0.15)',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16,185,129,0.25)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(16,185,129,0.15)')}
+        >
+          Upgrade
+        </button>
+        <button
+          onClick={onOpenSettings}
+          className="w-full transition-colors"
+          style={{
+            marginTop: '4px',
+            padding: '4px 0',
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.35)',
+            background: 'transparent',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}
+        >
+          Settings
+        </button>
+      </div>
+    )
+  }
+
+  if (error.type === 'daily_limit') {
+    const planPart = meta?.subscription_type ? `${meta.subscription_type} plan · ` : ''
+    const usage = meta?.daily_usage_count ?? 50
+    return (
+      <div style={{ padding: '10px 12px' }}>
+        <p
+          style={{
+            fontSize: '13px',
+            color: 'rgba(255,255,255,0.6)',
+            marginBottom: '4px',
+          }}
+        >
+          Daily limit reached
+        </p>
+        <p
+          style={{
+            fontSize: '10px',
+            color: 'rgba(255,255,255,0.3)',
+            marginBottom: '10px',
+          }}
+        >
+          {usage}/50 today · {planPart}resets at UTC midnight
+        </p>
+        <button
+          onClick={onDismiss}
+          className="w-full transition-colors"
+          style={{
+            padding: '5px 0',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.5)',
+            background: 'rgba(255,255,255,0.06)',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+        >
+          OK
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div style={{ padding: '6px 10px' }}>
       <p style={{ fontSize: '11px', lineHeight: 1.45, color: 'rgba(255,255,255,0.35)' }}>
@@ -50,6 +187,7 @@ export function App() {
   const [view, setView] = useState<View>('main')
   const [hasFirstCapture, setHasFirstCapture] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [meta, setMeta] = useState<CreditsMeta | null>(null)
   const containerRef = useAutoHeight<HTMLDivElement>()
 
   useEffect(() => {
@@ -57,6 +195,7 @@ export function App() {
       setHasFirstCapture(!!s.hasFirstCapture)
     })
     window.snapcue.getCurrentUser().then(setUser)
+    window.snapcue.getCreditsMeta().then(setMeta)
   }, [])
 
   useEffect(() => {
@@ -67,6 +206,7 @@ export function App() {
       window.snapcue.onAuthSignedOut(() => {
         setUser(null)
       }),
+      window.snapcue.onCreditsUpdate(setMeta),
     ]
     return () => unsubs.forEach((fn) => fn())
   }, [])
@@ -136,13 +276,25 @@ export function App() {
 
             {status === 'result' && <AnswerPanel answers={answers} />}
 
-            {status === 'error' && error && <ErrorPanel error={error} />}
+            {status === 'error' && error && (
+              <ErrorPanel
+                error={error}
+                meta={meta}
+                onOpenSettings={() => setView('settings')}
+                onDismiss={() => {
+                  setStatus('ready')
+                  setError(null)
+                }}
+              />
+            )}
           </>
         )}
       </div>
 
       {/* Footer — only on main view */}
-      {view !== 'settings' && <FooterBar onOpenSettings={() => setView('settings')} user={user} />}
+      {view !== 'settings' && (
+        <FooterBar onOpenSettings={() => setView('settings')} user={user} meta={meta} />
+      )}
     </div>
   )
 }

@@ -1,9 +1,10 @@
 interface FooterBarProps {
   onOpenSettings: () => void
   user: AuthUser | null
+  meta: CreditsMeta | null
 }
 
-export function FooterBar({ onOpenSettings, user }: FooterBarProps) {
+export function FooterBar({ onOpenSettings, user, meta }: FooterBarProps) {
   return (
     <div
       className="flex shrink-0 items-center justify-between"
@@ -12,8 +13,8 @@ export function FooterBar({ onOpenSettings, user }: FooterBarProps) {
         borderTop: '0.5px solid rgba(255,255,255,0.06)',
       }}
     >
-      {/* Left side reserved for future credits display */}
-      <span />
+      {/* Left: credits display (pure derive from meta prop) */}
+      <CreditsLabel meta={meta} />
 
       {/* Right side: Settings + Avatar + Quit */}
       <div className="flex items-center" style={{ gap: '8px' }}>
@@ -78,5 +79,40 @@ export function FooterBar({ onOpenSettings, user }: FooterBarProps) {
         </button>
       </div>
     </div>
+  )
+}
+
+function CreditsLabel({ meta }: { meta: CreditsMeta | null }) {
+  if (!meta) return <span />
+
+  const hasActiveSubscription =
+    meta.subscription_status === 'active' &&
+    meta.subscription_expires_at !== null &&
+    new Date(meta.subscription_expires_at).getTime() > Date.now()
+
+  if (hasActiveSubscription) {
+    return (
+      <span
+        style={{
+          fontSize: '11px',
+          fontFamily: 'monospace',
+          color: 'rgba(255,255,255,0.25)',
+        }}
+      >
+        unlimited
+      </span>
+    )
+  }
+
+  const n = Math.max(0, meta.credits_remaining)
+  const color =
+    n === 0
+      ? 'rgba(239,68,68,0.7)'
+      : n <= 2
+        ? 'rgba(251,146,60,0.7)'
+        : 'rgba(255,255,255,0.25)'
+
+  return (
+    <span style={{ fontSize: '11px', fontFamily: 'monospace', color }}>{n} left</span>
   )
 }

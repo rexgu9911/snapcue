@@ -9,6 +9,12 @@ let dropdown: BrowserWindow | null = null
 let lastHideTime = 0
 let currentIconName: TrayIcon = 'dot'
 let doneTimer: ReturnType<typeof setTimeout> | null = null
+let onShowCallback: (() => void) | null = null
+
+/** Register a callback to run every time the dropdown becomes visible. */
+export function setOnDropdownShow(cb: () => void): void {
+  onShowCallback = cb
+}
 
 const DROPDOWN_WIDTH = 200
 const DROPDOWN_MIN_HEIGHT = 36
@@ -130,6 +136,7 @@ function showDropdown(): void {
 
   dropdown.setPosition(clampedX, y)
   dropdown.show()
+  onShowCallback?.()
 }
 
 function hideDropdown(): void {
