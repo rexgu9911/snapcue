@@ -1,37 +1,36 @@
-import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
-import type { User } from '@supabase/supabase-js'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase.js'
+
+export type AuthUser = { id: string; email: string | null }
 
 declare module 'fastify' {
   interface FastifyRequest {
-    user: User | null
+    user: AuthUser | null
+  }
+  interface FastifyInstance {
+    requireAuth: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
   }
 }
 
-/**
- * Non-blocking auth middleware.
- *
- * Reads `Authorization: Bearer <jwt>` and populates `request.user`. A missing
- * or invalid header simply leaves `request.user = null` — requests still
- * continue. Routes that require auth enforce it themselves.
- */
-export const authPlugin: FastifyPluginAsync = async (app) => {
+async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const header = request.headers.authorization ?? ''
+  const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : ''
+
+  if (!token) {
+    reply.code(401).send({ error: 'auth_required' })
+    return
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token)
+  if (error || !data.user) {
+    reply.code(401).send({ error: 'auth_required' })
+    return
+  }
+
+  request.user = { id: data.user.id, email: data.user.email ?? null }
+}
+
+export function registerAuth(app: FastifyInstance): void {
   app.decorateRequest('user', null)
-
-  app.addHook('preHandler', async (request: FastifyRequest) => {
-    request.user = null
-
-    if (!supabaseAdmin) return
-
-    const header = request.headers.authorization
-    if (!header || !header.startsWith('Bearer ')) return
-
-    const jwt = header.slice('Bearer '.length).trim()
-    if (!jwt) return
-
-    const { data, error } = await supabaseAdmin.auth.getUser(jwt)
-    if (error || !data.user) return
-
-    request.user = data.user
-  })
+  app.decorate('requireAuth', requireAuth)
 }

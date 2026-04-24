@@ -1,12 +1,22 @@
 import { describe, it, expect, vi } from 'vitest'
 
+process.env['OPENAI_API_KEY'] = 'sk-test-key'
+process.env['SUPABASE_URL'] = 'https://test.supabase.co'
+process.env['SUPABASE_SERVICE_ROLE_KEY'] = 'test-service-role-key'
+
 vi.mock('openai', () => ({
   default: vi.fn().mockImplementation(() => ({
     chat: { completions: { create: vi.fn() } },
   })),
 }))
 
-process.env['OPENAI_API_KEY'] = 'sk-test-key'
+vi.mock('../lib/supabase.js', () => ({
+  supabaseAdmin: {
+    auth: { getUser: vi.fn() },
+    rpc: vi.fn(),
+    from: vi.fn(),
+  },
+}))
 
 import { buildApp } from '../server.js'
 

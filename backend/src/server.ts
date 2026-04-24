@@ -3,7 +3,8 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { analyzeRoute } from './routes/analyze.js'
 import { healthRoute } from './routes/health.js'
-import { authPlugin } from './middleware/auth.js'
+import { meRoute } from './routes/me.js'
+import { registerAuth } from './middleware/auth.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -15,7 +16,8 @@ export async function buildApp() {
     origin: [/^http:\/\/localhost(:\d+)?$/],
   })
 
-  // API key auth — skip if SNAPCUE_API_KEY is not set (local dev without auth)
+  // Anti-abuse API key (orthogonal to user auth). Skip when SNAPCUE_API_KEY
+  // is unset for local dev parity.
   const snapcueApiKey = process.env['SNAPCUE_API_KEY']
   if (snapcueApiKey) {
     app.addHook('onRequest', async (request, reply) => {
@@ -26,8 +28,11 @@ export async function buildApp() {
     })
   }
 
-  await app.register(authPlugin)
+  // Must run before any route that uses `app.requireAuth`.
+  registerAuth(app)
+
   app.register(analyzeRoute)
+  app.register(meRoute)
   app.register(healthRoute)
 
   return app
@@ -46,7 +51,6 @@ async function start() {
   }
 }
 
-// Only start the server when run directly (not when imported by tests)
 const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] !== undefined
 if (!isTest) {
   start()

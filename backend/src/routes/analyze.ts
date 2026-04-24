@@ -1,5 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import OpenAI from 'openai'
+import {
+  checkAndReserveCredit,
+  finalizeUsage,
+  getCreditsMeta,
+  refundCredit,
+  type CreditSource,
+  type CreditsMeta,
+} from '../lib/credits.js'
 
 const SYSTEM_PROMPT = `You are an exam question analysis assistant. The user sends a screenshot and you return the most likely answers.
 
@@ -33,7 +41,7 @@ Confidence scale:
 - For short answer: high = covers all key points the question asks for, mid = may miss some aspects, low = uncertain about what the question is asking.`
 
 interface AnalyzeBody {
-  image: string // base64-encoded image (no data URI prefix)
+  image: string
 }
 
 interface AnswerItem {
@@ -43,6 +51,8 @@ interface AnswerItem {
   reason: string
 }
 
+type AnalyzeMeta = CreditsMeta & { source: CreditSource }
+
 export const analyzeRoute: FastifyPluginAsync = async (app) => {
   const apiKey = process.env['OPENAI_API_KEY']
   if (!apiKey) {
@@ -51,75 +61,118 @@ export const analyzeRoute: FastifyPluginAsync = async (app) => {
 
   const client = new OpenAI({ apiKey })
 
-  app.post<{ Body: AnalyzeBody }>('/analyze', async (request, reply) => {
-    request.log.info(`[analyze] user: ${request.user?.id ?? 'anonymous'}`)
+  app.post<{ Body: AnalyzeBody }>(
+    '/analyze',
+    { preHandler: app.requireAuth },
+    async (request, reply) => {
+      const user = request.user
+      if (!user) {
+        // Defensive: requireAuth should guarantee this, but narrow the type.
+        return reply.code(401).send({ error: 'auth_required' })
+      }
 
-    const { image } = request.body
+      const { image } = request.body
+      if (!image || typeof image !== 'string') {
+        return reply
+          .code(400)
+          .send({ error: 'Missing or invalid "image" field (base64 string)' })
+      }
 
-    if (!image || typeof image !== 'string') {
-      return reply.status(400).send({ error: 'Missing or invalid "image" field (base64 string)' })
-    }
+      // 1. Reserve credit atomically.
+      const reservation = await checkAndReserveCredit(user.id)
+      if (!reservation.ok) {
+        if (reservation.reason === 'daily_limit') {
+          return reply.code(429).send({ error: 'daily_limit' })
+        }
+        // no_credits and no_profile both surface as paywall to the client.
+        return reply.code(402).send({ error: 'no_credits' })
+      }
+      const source = reservation.source
 
-    // Detect media type from base64 header or default to png
-    const mediaType = detectMediaType(image)
-    // Strip data URI prefix if present
-    const rawBase64 = image.replace(/^data:image\/\w+;base64,/, '')
-    const dataUri = `data:${mediaType};base64,${rawBase64}`
+      // 2. Call AI. Network / timeout failures refund the reservation.
+      const mediaType = detectMediaType(image)
+      const rawBase64 = image.replace(/^data:image\/\w+;base64,/, '')
+      const dataUri = `data:${mediaType};base64,${rawBase64}`
+      const imageBytes = Buffer.from(rawBase64, 'base64').length
+      request.log.info(
+        `[analyze] user=${user.id} source=${source} image=${imageBytes}b media=${mediaType}`,
+      )
 
-    const imageBytes = Buffer.from(rawBase64, 'base64').length
-    request.log.info(`[analyze] image size: ${imageBytes} bytes, media: ${mediaType}`)
+      let text: string | null = null
+      try {
+        const response = await client.chat.completions.create({
+          model: 'gpt-5-mini',
+          max_completion_tokens: 4096,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            {
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: dataUri, detail: 'high' } },
+                { type: 'text', text: 'Analyze the quiz questions in this image.' },
+              ],
+            },
+          ],
+        })
+        text = response.choices[0]?.message?.content ?? null
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        // Refund — AI was never reached (or timed out before using tokens).
+        try {
+          await refundCredit(user.id, source)
+        } catch (refundErr) {
+          request.log.error({ err: refundErr }, 'refund_credit failed')
+        }
+        request.log.error({ err }, 'OpenAI API call failed (credit refunded)')
+        if (message.includes('timeout') || message.includes('ETIMEDOUT')) {
+          return reply.code(504).send({ error: 'ai_unavailable', reason: 'timeout' })
+        }
+        return reply.code(502).send({ error: 'ai_unavailable' })
+      }
 
-    try {
-      const response = await client.chat.completions.create({
-        model: 'gpt-5-mini',
-        max_completion_tokens: 4096,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: { url: dataUri, detail: 'high' },
-              },
-              {
-                type: 'text',
-                text: 'Analyze the quiz questions in this image.',
-              },
-            ],
-          },
-        ],
-      })
-
-      const text = response.choices[0]?.message?.content
-      request.log.info(`[analyze] AI raw response: ${text}`)
+      // 3. Parse. Tokens consumed → credit stays debited regardless of outcome.
+      let answers: AnswerItem[] = []
+      let success = false
+      let errorType: string | undefined
 
       if (!text) {
-        return reply.status(502).send({ error: 'No text response from AI' })
+        errorType = 'no_response'
+      } else {
+        try {
+          answers = parseAnswers(text)
+          success = true
+        } catch (parseErr) {
+          errorType = 'parse_error'
+          request.log.error({ text, err: parseErr }, 'Failed to parse AI response')
+        }
       }
 
-      // Parse and validate JSON
-      const answers = parseAnswers(text)
-      request.log.info(`[analyze] parsed ${answers.length} answers`)
+      // 4. Audit log — fire-and-forget failure handling so logging bugs don't
+      //    break the response.
+      finalizeUsage({
+        userId: user.id,
+        source,
+        success,
+        questionsCount: answers.length,
+        errorType,
+      }).catch((logErr) => {
+        request.log.error({ err: logErr }, 'usage_logs insert failed')
+      })
 
-      return {
-        answers,
-        usage: {
-          prompt_tokens: response.usage?.prompt_tokens ?? 0,
-          completion_tokens: response.usage?.completion_tokens ?? 0,
-        },
+      // 5. Build response with fresh meta.
+      const meta = await getCreditsMeta(user.id)
+      const responseMeta: AnalyzeMeta | null = meta ? { ...meta, source } : null
+
+      if (!success) {
+        // Credit was consumed; return meta so the client can update its footer.
+        return reply
+          .code(502)
+          .send({ error: errorType ?? 'parse_error', meta: responseMeta })
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      request.log.error({ err }, 'OpenAI API call failed')
 
-      if (message.includes('timeout') || message.includes('ETIMEDOUT')) {
-        return reply.status(504).send({ error: 'AI analysis timed out' })
-      }
-
-      return reply.status(502).send({ error: `AI analysis failed: ${message}` })
-    }
-  })
+      return { answers, meta: responseMeta }
+    },
+  )
 }
 
 function detectMediaType(base64: string): 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' {
@@ -130,7 +183,6 @@ function detectMediaType(base64: string): 'image/png' | 'image/jpeg' | 'image/gi
 }
 
 function parseAnswers(text: string): AnswerItem[] {
-  // Try to extract JSON from markdown code blocks or raw text
   const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? text.match(/(\[[\s\S]*\])/)
   const jsonStr = jsonMatch ? jsonMatch[1]!.trim() : text.trim()
 
