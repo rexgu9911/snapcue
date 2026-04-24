@@ -246,10 +246,15 @@ function applySettingsChange(partial: Partial<AppSettings>): void {
 
 /** Send screenshot to backend and dispatch result/error + credits update */
 async function analyzeAndDeliver(base64: string): Promise<void> {
-  sendToDropdown(IPC.CAPTURE_LOADING)
-  setTrayState('analyzing')
-
+  // Full-body try/catch guarantees the renderer never stays stuck in loading:
+  // once sendToDropdown(CAPTURE_LOADING) fires, exactly one of
+  // CAPTURE_RESULT / CAPTURE_ERROR must follow. Any throw on the path below
+  // (including tray state changes, push helpers, or post-result bookkeeping)
+  // falls through to the catch and surfaces as an unknown error.
   try {
+    sendToDropdown(IPC.CAPTURE_LOADING)
+    setTrayState('analyzing')
+
     const result = await analyzeImage(base64)
 
     // Always propagate fresh meta when the backend returned one, so the
@@ -283,6 +288,13 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
     if (!settings.hasFirstCapture) {
       applySettingsChange({ hasFirstCapture: true })
     }
+  } catch (err) {
+    console.error('[ipc] analyzeAndDeliver unexpected error:', err)
+    sendToDropdown(IPC.CAPTURE_ERROR, {
+      type: 'unknown',
+      message: 'Unexpected error. Try again.',
+      canRetry: true,
+    })
   } finally {
     setTrayState('done')
   }
@@ -306,8 +318,22 @@ async function handleCapture(mode: CaptureMode): Promise<void> {
   // Cache for retry
   lastScreenshot = base64
 
-  // Step 2: analyze
-  await analyzeAndDeliver(base64)
+  // Step 2: analyze. Outer catch is a last line of defense — Fix 2.1 already
+  // wraps analyzeAndDeliver's body, but hotkey handlers are fire-and-forget
+  // async, so any uncaught throw here would silently become an unhandled
+  // promise rejection. Leave a breadcrumb in console + surface a generic
+  // error to the renderer.
+  try {
+    await analyzeAndDeliver(base64)
+  } catch (err) {
+    console.error('[ipc] handleCapture top-level error:', err)
+    sendToDropdown(IPC.CAPTURE_ERROR, {
+      type: 'unknown',
+      message: 'Unexpected error. Try again.',
+      canRetry: true,
+    })
+    setTrayState('done')
+  }
 }
 
 async function handleRetry(): Promise<void> {

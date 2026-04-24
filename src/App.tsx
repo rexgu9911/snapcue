@@ -221,6 +221,23 @@ export function App() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // Product contract: loading state never exceeds 35 seconds. Last-resort
+  // guard if the main-side push is dropped for any reason (IPC hiccup,
+  // destroyed webContents, Railway cold-start racing past our 30s timeout).
+  // Seeing a permanent spinner is worse UX than a retryable error panel.
+  useEffect(() => {
+    if (status !== 'loading') return
+    const timer = setTimeout(() => {
+      setStatus('error')
+      setError({
+        type: 'unknown',
+        message: 'Request seems stuck. Try again.',
+        canRetry: true,
+      })
+    }, 35_000)
+    return () => clearTimeout(timer)
+  }, [status])
+
   useEffect(() => {
     const unsubs = [
       window.snapcue.onPermissionStatus((granted) => {
