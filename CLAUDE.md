@@ -79,6 +79,21 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - 填空题多个空用 " | " 分隔
 - 简答题 reason 为空字符串，answer 本身就是完整可提交的回答
 
+## PR 2 第一次尝试（回退）
+
+第一次尝试实现 credit system，在配置环节遇到多处阻塞：
+
+- backend/.env 变量命名不一致（SNAPCUE_ 前缀 vs 无前缀）
+- backend/.env 缺 Supabase 凭证
+- dev 模式下 API key 配置不对称
+- Supabase JWT 验证卡住（未完全定位）
+
+最终回退所有代码，计划在新 session 重新设计实现路径：
+
+- 更明确的 env 变量命名约定
+- 环境变量 schema 在代码里用 zod 校验
+- dev 模式和 prod 模式的配置差异明确文档化
+
 ## Onboarding 流程
 
 首次启动时显示 400×480px 居中窗口（titleBarStyle: hiddenInset），3 页引导：
@@ -296,10 +311,16 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 **阶段 6 — 认证 + 付费系统**
 
-- 6.1 用户认证（Supabase Auth）
-- 6.2 使用额度管理（免费 5 次 + 订阅无限 + credit 扣减）
-- 6.3 Stripe 支付（周卡 $5.99 / 月卡 $12.99 / credit 包三档）
-- 6.4 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
+- 6.1 ✅ 用户认证（Supabase Magic Link）
+  - 实现：Electron auth.ts + 官网 /auth/callback + snapcue:// deep link
+  - 打包 app 通过 lsregister 正确注册协议（com.snapcue.app）
+  - Session 持久化到 userData/auth.json
+  - Onboarding 第 4 页 + Settings ACCOUNT 区块
+  - 非强制登录，未登录用户仍可使用
+
+- 6.2 ⬜ 使用额度管理（免费 5 次 + 订阅无限 + credit 扣减）— 第一次尝试已回退，详见下方复盘
+- 6.3 ⬜ Stripe 支付（周卡 $5.99 / 月卡 $12.99 / credit 包三档）
+- 6.4 ⬜ 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
 **阶段 7 — 打包发布**
 
