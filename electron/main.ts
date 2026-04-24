@@ -1,6 +1,6 @@
 import { app, BrowserWindow, globalShortcut } from 'electron'
 import { initTray } from './tray'
-import { initIpc, getSettings } from './ipc'
+import { initIpc, getSettings, refreshCreditsMeta } from './ipc'
 import { createOnboardingWindow } from './onboarding'
 import { setStoredSession } from './auth'
 import { IPC } from '../shared/types'
@@ -45,6 +45,10 @@ async function handleDeepLink(raw: string): Promise<void> {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send(IPC.AUTH_SIGNED_IN, payload)
   }
+
+  // Pull credits meta immediately after login so the footer / settings
+  // render with a real balance without waiting for the first capture.
+  void refreshCreditsMeta()
 }
 
 // Keep the app running when all windows are hidden (tray-only app)

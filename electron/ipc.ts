@@ -8,6 +8,7 @@ import {
   type ErrorType,
   type AuthUser,
   type SignInResult,
+  type CreditsMeta,
 } from '../shared/types'
 import { sendToDropdown, updateTrayIcon, setTrayState, toggleDropdown } from './tray'
 import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
@@ -15,22 +16,40 @@ import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 import { config } from './config'
 import { clearStoredSession, getCurrentUser, getStoredSession, signInWithMagicLink } from './auth'
-const API_TIMEOUT_MS = 30_000
 
-interface AnalyzeResponse {
+const API_TIMEOUT_MS = 30_000
+const PRICING_URL = 'https://snapcue-web.vercel.app/pricing'
+
+// ── Backend response shapes ─────────────────────────────────────────────────
+
+interface AnalyzeSuccess {
   answers: AnswerItem[]
-  usage: { prompt_tokens: number; completion_tokens: number }
+  meta: (CreditsMeta & { source: 'free' | 'paid' | 'subscription' }) | null
 }
 
-async function analyzeImage(base64: string): Promise<AnswerItem[]> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (config.apiKey) {
-    headers['x-api-key'] = config.apiKey
+interface AnalyzeError {
+  error: string
+  meta?: CreditsMeta | null
+  reason?: string
+}
+
+type AnalyzeResult =
+  | { ok: true; answers: AnswerItem[]; meta: CreditsMeta | null }
+  | { ok: false; errorType: ErrorType; meta: CreditsMeta | null }
+
+async function analyzeImage(base64: string): Promise<AnalyzeResult> {
+  // Per product rule 2.3: unauthenticated requests never leave the client.
+  const session = await getStoredSession()
+  if (!session?.access_token) {
+    return { ok: false, errorType: 'auth_required', meta: null }
   }
 
-  const session = await getStoredSession()
-  if (session?.access_token) {
-    headers['Authorization'] = `Bearer ${session.access_token}`
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session.access_token}`,
+  }
+  if (config.apiKey) {
+    headers['x-api-key'] = config.apiKey
   }
 
   const fetchPromise = net.fetch(`${config.apiBaseUrl}/analyze`, {
@@ -38,53 +57,126 @@ async function analyzeImage(base64: string): Promise<AnswerItem[]> {
     headers,
     body: JSON.stringify({ image: base64 }),
   })
-
-  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error('AI analysis timed out')), API_TIMEOUT_MS)
   })
 
-  const res = await Promise.race([fetchPromise, timeoutPromise])
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
-    throw new Error((body['error'] as string) ?? `Server error ${res.status}`)
+  let res: Response
+  try {
+    res = await Promise.race([fetchPromise, timeoutPromise])
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('timed out') || msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
+      return { ok: false, errorType: 'timeout', meta: null }
+    }
+    return { ok: false, errorType: 'network_error', meta: null }
   }
 
-  const data = (await res.json()) as AnalyzeResponse
-  return data.answers
+  const body = (await res.json().catch(() => ({}))) as AnalyzeError | AnalyzeSuccess
+  const bodyMeta = (body as AnalyzeError).meta ?? null
+
+  if (res.status === 200) {
+    const success = body as AnalyzeSuccess
+    return { ok: true, answers: success.answers, meta: success.meta }
+  }
+
+  if (res.status === 401) return { ok: false, errorType: 'auth_required', meta: null }
+  if (res.status === 402) return { ok: false, errorType: 'no_credits', meta: bodyMeta }
+  if (res.status === 429) return { ok: false, errorType: 'daily_limit', meta: bodyMeta }
+
+  // 502: either business parse_error (meta present, credit consumed) or
+  // ai_unavailable (no meta, credit refunded). 504 is timeout after refund.
+  if (res.status === 502 || res.status === 504) {
+    const errorField = (body as AnalyzeError).error
+    if (errorField === 'parse_error' || errorField === 'no_response') {
+      return { ok: false, errorType: 'parse_error', meta: bodyMeta }
+    }
+    if (res.status === 504) {
+      return { ok: false, errorType: 'timeout', meta: null }
+    }
+    return { ok: false, errorType: 'network_error', meta: null }
+  }
+
+  return { ok: false, errorType: 'unknown', meta: bodyMeta }
+}
+
+// ── GET /me ─────────────────────────────────────────────────────────────────
+
+interface MeResponse {
+  user: AuthUser
+  meta: CreditsMeta
+}
+
+async function fetchCreditsMeta(): Promise<CreditsMeta | null> {
+  const session = await getStoredSession()
+  if (!session?.access_token) return null
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${session.access_token}`,
+  }
+  if (config.apiKey) {
+    headers['x-api-key'] = config.apiKey
+  }
+
+  try {
+    const res = await net.fetch(`${config.apiBaseUrl}/me`, { headers })
+    if (!res.ok) return null
+    const body = (await res.json()) as MeResponse
+    return body.meta
+  } catch {
+    return null
+  }
+}
+
+// ── Credits cache + pushers ─────────────────────────────────────────────────
+
+let latestCreditsMeta: CreditsMeta | null = null
+
+function pushCreditsUpdate(meta: CreditsMeta | null): void {
+  latestCreditsMeta = meta
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC.CREDITS_UPDATE, meta)
+  }
+}
+
+export async function refreshCreditsMeta(): Promise<CreditsMeta | null> {
+  const meta = await fetchCreditsMeta()
+  pushCreditsUpdate(meta)
+  return meta
 }
 
 // ── Last screenshot cache (for retry) ───────────────────────────────────────
 
 let lastScreenshot: string | null = null
 
-// ── Error classification ────────────────────────────────────────────────────
+// ── Error type → user-facing copy + retry policy ────────────────────────────
 
-function classifyError(err: unknown): { type: ErrorType; message: string } {
-  const msg = err instanceof Error ? err.message : 'Analysis failed'
-
-  if (msg.includes('timed out') || msg.includes('ETIMEDOUT') || msg.includes('timeout')) {
-    return { type: 'timeout', message: 'AI analysis timed out. Try again.' }
+function messageForErrorType(type: ErrorType): string {
+  switch (type) {
+    case 'timeout':
+      return 'AI analysis timed out. Try again.'
+    case 'network_error':
+      return 'Cannot reach server. Check your connection.'
+    case 'parse_error':
+      return 'Failed to parse AI response. Try again.'
+    case 'auth_required':
+      return 'Sign in to continue.'
+    case 'no_credits':
+      return "You're out of credits."
+    case 'daily_limit':
+      return 'Daily limit reached.'
+    case 'no_questions':
+      return 'No quiz questions detected in the screenshot.'
+    default:
+      return 'Something went wrong. Try again.'
   }
+}
 
-  if (
-    msg.includes('ECONNREFUSED') ||
-    msg.includes('ERR_CONNECTION_REFUSED') ||
-    msg.includes('ENOTFOUND') ||
-    msg.includes('ERR_NAME_NOT_RESOLVED') ||
-    msg.includes('ERR_CONNECTION_TIMED_OUT') ||
-    msg.includes('fetch failed') ||
-    msg.includes('network') ||
-    msg.includes('NetworkError')
-  ) {
-    return { type: 'network_error', message: 'Cannot reach server. Check your connection.' }
-  }
-
-  if (msg.includes('not a JSON') || msg.includes('JSON')) {
-    return { type: 'parse_error', message: 'Failed to parse AI response. Try again.' }
-  }
-
-  return { type: 'unknown', message: 'Something went wrong. Try again.' }
+function isRetryableErrorType(type: ErrorType): boolean {
+  // Re-submitting the same screenshot is only useful when the issue is
+  // transient (network, timeout, AI glitch). Auth/billing/daily-limit/
+  // no_questions all require user action or a different image.
+  return type === 'timeout' || type === 'network_error' || type === 'parse_error' || type === 'unknown'
 }
 
 // ── Permission state ─────────────────────────────────────────────────────────
@@ -146,7 +238,7 @@ function applySettingsChange(partial: Partial<AppSettings>): void {
 
 // ── Capture handler ──────────────────────────────────────────────────────────
 
-/** Send screenshot to backend and handle result/error */
+/** Send screenshot to backend and dispatch result/error + credits update */
 async function analyzeAndDeliver(base64: string): Promise<void> {
   sendToDropdown(IPC.CAPTURE_LOADING)
   setTrayState('analyzing')
@@ -154,26 +246,37 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
   try {
     const result = await analyzeImage(base64)
 
-    if (result.length === 0) {
+    // Always propagate fresh meta when the backend returned one, so the
+    // footer can reflect the new balance even on business-failure paths.
+    if (result.meta) {
+      pushCreditsUpdate(result.meta)
+    }
+
+    if (!result.ok) {
+      const error: CaptureError = {
+        type: result.errorType,
+        message: messageForErrorType(result.errorType),
+        canRetry: isRetryableErrorType(result.errorType),
+      }
+      sendToDropdown(IPC.CAPTURE_ERROR, error)
+      return
+    }
+
+    if (result.answers.length === 0) {
       const error: CaptureError = {
         type: 'no_questions',
-        message: 'No quiz questions detected in the screenshot.',
+        message: messageForErrorType('no_questions'),
         canRetry: false,
       }
       sendToDropdown(IPC.CAPTURE_ERROR, error)
       return
     }
 
-    sendToDropdown(IPC.CAPTURE_RESULT, result)
+    sendToDropdown(IPC.CAPTURE_RESULT, result.answers)
 
-    // Mark first successful capture
     if (!settings.hasFirstCapture) {
       applySettingsChange({ hasFirstCapture: true })
     }
-  } catch (err) {
-    const { type, message } = classifyError(err)
-    const error: CaptureError = { type, message, canRetry: true }
-    sendToDropdown(IPC.CAPTURE_ERROR, error)
   } finally {
     setTrayState('done')
   }
@@ -275,9 +378,22 @@ export async function initIpc(): Promise<void> {
 
   ipcMain.handle(IPC.AUTH_SIGN_OUT, async () => {
     await clearStoredSession()
+    pushCreditsUpdate(null)
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send(IPC.AUTH_SIGNED_OUT)
     }
+  })
+
+  ipcMain.handle(IPC.AUTH_OPEN_PRICING, () => {
+    shell.openExternal(PRICING_URL)
+  })
+
+  ipcMain.handle(IPC.CREDITS_GET, (): CreditsMeta | null => {
+    return latestCreditsMeta
+  })
+
+  ipcMain.handle(IPC.CREDITS_REFRESH, async (): Promise<CreditsMeta | null> => {
+    return refreshCreditsMeta()
   })
 
   // Register global shortcuts from persisted settings
@@ -287,6 +403,10 @@ export async function initIpc(): Promise<void> {
   if (!screenPermissionGranted) {
     setTimeout(() => sendToDropdown(IPC.PERMISSION_STATUS, false), 500)
   }
+
+  // Prefetch credits if already signed in — footer / settings render
+  // with a real number instead of a blank on app launch.
+  void refreshCreditsMeta()
 }
 
 export function getSettings(): AppSettings {

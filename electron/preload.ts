@@ -7,6 +7,7 @@ import {
   type AuthUser,
   type CaptureError,
   type SignInResult,
+  type CreditsMeta,
 } from '../shared/types'
 
 contextBridge.exposeInMainWorld('snapcue', {
@@ -37,8 +38,12 @@ contextBridge.exposeInMainWorld('snapcue', {
   retryCapture: () => ipcRenderer.invoke(IPC.CAPTURE_RETRY),
 
   // ── Credits ──────────────────────────────────────────────────────────────
-  onCreditsUpdate: (cb: (balance: number) => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, balance: number) => cb(balance)
+  getCreditsMeta: () =>
+    ipcRenderer.invoke(IPC.CREDITS_GET) as Promise<CreditsMeta | null>,
+  refreshCredits: () =>
+    ipcRenderer.invoke(IPC.CREDITS_REFRESH) as Promise<CreditsMeta | null>,
+  onCreditsUpdate: (cb: (meta: CreditsMeta | null) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, meta: CreditsMeta | null) => cb(meta)
     ipcRenderer.on(IPC.CREDITS_UPDATE, listener)
     return () => ipcRenderer.removeListener(IPC.CREDITS_UPDATE, listener)
   },
@@ -67,6 +72,7 @@ contextBridge.exposeInMainWorld('snapcue', {
   getCurrentUser: () => ipcRenderer.invoke(IPC.AUTH_GET_CURRENT_USER) as Promise<AuthUser | null>,
   signIn: (email: string) => ipcRenderer.invoke(IPC.AUTH_SIGN_IN, email) as Promise<SignInResult>,
   signOut: () => ipcRenderer.invoke(IPC.AUTH_SIGN_OUT) as Promise<void>,
+  openPricing: () => ipcRenderer.invoke(IPC.AUTH_OPEN_PRICING) as Promise<void>,
   onAuthSignedIn: (cb: (payload: { email: string }) => void) => {
     const listener = (_e: Electron.IpcRendererEvent, payload: { email: string }) => cb(payload)
     ipcRenderer.on(IPC.AUTH_SIGNED_IN, listener)

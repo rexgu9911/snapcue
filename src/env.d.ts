@@ -9,6 +9,7 @@ type ErrorType = import('../shared/types').ErrorType
 type TrayIcon = import('../shared/types').TrayIcon
 type AuthUser = import('../shared/types').AuthUser
 type SignInResult = import('../shared/types').SignInResult
+type CreditsMeta = import('../shared/types').CreditsMeta
 
 interface SnapCueAPI {
   platform: string
@@ -25,7 +26,9 @@ interface SnapCueAPI {
   retryCapture: () => Promise<void>
 
   // Credits
-  onCreditsUpdate: (cb: (balance: number) => void) => () => void
+  getCreditsMeta: () => Promise<CreditsMeta | null>
+  refreshCredits: () => Promise<CreditsMeta | null>
+  onCreditsUpdate: (cb: (meta: CreditsMeta | null) => void) => () => void
 
   // Permissions
   openPermissionSettings: () => Promise<void>
@@ -46,6 +49,7 @@ interface SnapCueAPI {
   getCurrentUser: () => Promise<AuthUser | null>
   signIn: (email: string) => Promise<SignInResult>
   signOut: () => Promise<void>
+  openPricing: () => Promise<void>
   onAuthSignedIn: (cb: (payload: { email: string }) => void) => () => void
   onAuthSignedOut: (cb: () => void) => () => void
 }

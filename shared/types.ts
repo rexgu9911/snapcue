@@ -13,13 +13,35 @@ export interface AnswerItem {
 
 // ── Error ───────────────────────────────────────────────────────────────────
 
-export type ErrorType = 'network_error' | 'timeout' | 'no_questions' | 'parse_error' | 'unknown'
+export type ErrorType =
+  | 'network_error'
+  | 'timeout'
+  | 'no_questions'
+  | 'parse_error'
+  | 'unknown'
+  | 'auth_required'
+  | 'no_credits'
+  | 'daily_limit'
 
 export interface CaptureError {
   type: ErrorType
   message: string
   /** Whether a cached screenshot is available for retry */
   canRetry: boolean
+}
+
+// ── Credits ─────────────────────────────────────────────────────────────────
+
+export type SubscriptionStatus = 'none' | 'active' | 'expired' | 'canceled'
+export type SubscriptionType = 'weekly' | 'monthly' | null
+
+export interface CreditsMeta {
+  /** Free + paid credits combined. -1 means unlimited (active subscription). */
+  credits_remaining: number
+  daily_usage_count: number
+  subscription_status: SubscriptionStatus
+  subscription_type: SubscriptionType
+  subscription_expires_at: string | null
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────
@@ -72,7 +94,7 @@ export interface MainToRendererEvents {
   'capture:loading': void
   'capture:result': AnswerItem[]
   'capture:error': CaptureError
-  'credits:update': number
+  'credits:update': CreditsMeta | null
   'permission:status': boolean
   'auth:signedIn': { email: string }
   'auth:signedOut': void
@@ -103,6 +125,9 @@ export interface RendererToMainCommands {
   'auth:getCurrentUser': { args: void; return: AuthUser | null }
   'auth:signIn': { args: string; return: SignInResult }
   'auth:signOut': { args: void; return: void }
+  'auth:openPricing': { args: void; return: void }
+  'credits:get': { args: void; return: CreditsMeta | null }
+  'credits:refresh': { args: void; return: CreditsMeta | null }
 }
 
 // ── Channel name constants (prevents typos) ──────────────────────────────────
@@ -133,4 +158,7 @@ export const IPC = {
   AUTH_GET_CURRENT_USER: 'auth:getCurrentUser',
   AUTH_SIGN_IN: 'auth:signIn',
   AUTH_SIGN_OUT: 'auth:signOut',
+  AUTH_OPEN_PRICING: 'auth:openPricing',
+  CREDITS_GET: 'credits:get',
+  CREDITS_REFRESH: 'credits:refresh',
 } as const
