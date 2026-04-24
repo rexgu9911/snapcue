@@ -71,19 +71,21 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - Onboarding 完成标记仅在用户点击 "Continue" 时写入，点击 "Open System Settings" 不标记（防止 macOS 强制重启后用户看不到任何窗口）
 - 后端部署平台选择 Railway（自动部署、免费额度够 beta、不需要 Dockerfile）
 - API 认证：x-api-key header，SNAPCUE_API_KEY 环境变量，未设置时跳过验证（本地开发兼容）
-- 环境变量通过 Vite envPrefix 'SNAPCUE_' 在构建时注入，import.meta.env.SNAPCUE_API_URL / SNAPCUE_API_KEY
+- 环境变量通过 Vite envPrefix 'SNAPCUE\_' 在构建时注入，import.meta.env.SNAPCUE_API_URL / SNAPCUE_API_KEY
 - electron-builder 打包：sharp 和 @img 需要 asarUnpack，mac.identity 设为 null 跳过签名
 - App icon: 白色背景 + 深色幽灵角色，macOS 自动应用 squircle 蒙版
 - 全题型支持后 answer 字段不再限于字母，前端根据 answer 长度自适应展示（scrollWidth 检测截断）
 - 判断题从 T/F 改为 True/False 完整单词，避免与选项字母混淆
 - 填空题多个空用 " | " 分隔
 - 简答题 reason 为空字符串，answer 本身就是完整可提交的回答
+- Sign-in 独立窗口：Paywall 触发 / Settings signed-out 统一走 440×420 modal（electron/signin.ts）承载 SignInForm，全局单一路径（`auth:openSignin` 无参数分叉）。独立窗口相对 dropdown 内嵌的好处：(a) 尺寸 / 视觉可独立设计，不受 200px 宽度约束；(b) 用户去邮箱点 magic link 回来可 cmd+tab 切回窗口；(c) deep link 回调统一关闭窗口 + 刷新 footer
+- 业务失败响应契约：后端 402 / 429 等"用户能通过操作解决"的失败响应 body 必须带 CreditsMeta。前端依赖 meta 渲染付费引导面板（no_credits → Upgrade，daily_limit → Daily limit reached），零二次请求。Electron main 把 meta 转存内存并推 credits:update，footer 与 Settings 自动同步
 
 ## PR 2 第一次尝试（回退）
 
 第一次尝试实现 credit system，在配置环节遇到多处阻塞：
 
-- backend/.env 变量命名不一致（SNAPCUE_ 前缀 vs 无前缀）
+- backend/.env 变量命名不一致（SNAPCUE\_ 前缀 vs 无前缀）
 - backend/.env 缺 Supabase 凭证
 - dev 模式下 API key 配置不对称
 - Supabase JWT 验证卡住（未完全定位）
@@ -96,20 +98,51 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 ## Onboarding 流程
 
-首次启动时显示 400×480px 居中窗口（titleBarStyle: hiddenInset），3 页引导：
+首次启动时显示 400×480px 居中窗口（titleBarStyle: hiddenInset），4 页引导：
 
 1. **Welcome**：SnapCue 品牌 + "screenshot. analyze. answer." + 流程可视化（截图图标 → 箭头 → 答案字母 A + 绿色置信度点）+ "Get Started" 按钮
-2. **Shortcuts**：两个并排卡片展示 ⌃���S（silent capture）和 ⌃⌥A（area select），附带 "any language · any subject" 标语 + "Continue" 按钮
+2. **Shortcuts**：两个并排卡片展示 ⌃⌥S（silent capture）和 ⌃⌥A（area select），附带 "any language · any subject" 标语 + "Continue" 按钮
 3. **Permission**：永远显示权限引导（不检测）。红色警告图标 + 说明文字 + monospace 路径提示（System Settings → Privacy & Security → Screen Recording）+ "Open System Settings" 按钮 + "Continue" 链接
+4. **Sign In**：标题 "Sign in to sync credits across devices" + 副标 "We'll email you a magic link. No password needed." + 复用 SignInForm 组件（email input + Send Magic Link + Resend 15s cooldown）+ 底部 "Skip for now" 链接（未登录也能完成引导，idle-view 会再引导登录）
 
-- 页面 2/3 有 ← back 按钮可回退
-- 底部 3 个页面指示点，当前页有辉光效果
+- 页面 2/3/4 有 ← back 按钮可回退
+- 底部 4 个页面指示点，当前页有辉光效果
 - 渲染方式：同一 renderer，通过 URL hash `#onboarding` 区分模式
+- Page 4 监听 `auth:signedIn`：magic link deep link 成功登录后自动 `completeOnboarding()`，用户可停留在邮箱 tab 无需切回引导窗口
 - 完成后设置 `hasOnboarded: true`，关闭窗口，隐藏 dock
 
 ## UI/UX 设计规范
 
 追求原生 macOS vibrancy menu 的质感，紧凑、隐蔽、小字。
+
+### Brand Color
+
+付费引导入口使用 emerald 作为唯一品牌色：`#10b981`（RGB 16, 185, 129）。派生透明度用于不同权重的 UI 元素：
+
+- `rgba(16,185,129,0.9)` — 按钮 / 链接文字（高对比）
+- `rgba(16,185,129,0.75)` — 低权重链接（如 "Manage subscription →"）
+- `rgba(16,185,129,0.25)` — 按钮 hover 背景
+- `rgba(16,185,129,0.15)` — 按钮静态背景
+
+**原则**：emerald 仅用于"付费相关"入口（Upgrade 按钮、Manage subscription 链接、no_credits paywall），其它交互一律白色半透明。这保证视觉上一眼就能定位付费 CTA。
+
+### Neutral Button Colors
+
+次要按钮统一使用以下派生值。按语义分两档：
+
+**Neutral（一级）**：引导用户主动操作的次要按钮（Sign in / Back / Resend 等）。和主 CTA 区分度明显，但依然需要被用户看到。
+
+- Button text: `rgba(255, 255, 255, 0.7)`
+- Button bg: `rgba(255, 255, 255, 0.08)`
+- Hover bg: `rgba(255, 255, 255, 0.12)`
+
+**Subtle（二级）**：被动 dismiss 或恢复类按钮（OK / Retry / Cancel dismiss 等）。视觉权重明显低于 Neutral，避免和付费 CTA 争夺注意力。
+
+- Button text: `rgba(255, 255, 255, 0.5)`
+- Button bg: `rgba(255, 255, 255, 0.06)`
+- Hover bg: `rgba(255, 255, 255, 0.10)`
+
+**原则**：如果按钮的行为是"用户需要决定往哪走"（主动），用 Neutral；如果按钮的行为是"确认我看到了"或"恢复到出错前"（被动），用 Subtle。
 
 ### Dropdown 整体
 
@@ -124,11 +157,13 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 ### Idle 空闲态
 
 **首次使用态**（hasFirstCapture 为 false）：
+
 - "ready to go"，13px，font-weight 500，`rgba(255,255,255,0.6)`
 - "open a question and press ⌃⌥A"（读取用户实际设置的快捷键），11px，`rgba(255,255,255,0.3)`
 - 首次截图分析成功后自动切换到正常态，hasFirstCapture 持久化到 settings.json
 
 **正常态**（hasFirstCapture 为 true）：
+
 - 三个装饰圆点（5px，`rgba(255,255,255,0.15)`，横排 gap 6px）
 - 主快捷键用 key cap 风格展示：[⌃ ctrl] [⌥ opt] [A]，修饰键 44px 双行（符号+文字），字母键 28px 单行，圆角 5px，立体边框
 - 下方 "area select" 标签，9px
@@ -232,6 +267,30 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 | dropdown:resize         | renderer → main | send   | 上报内容高度                                        |
 | onboarding:complete     | renderer → main | invoke | 标记 onboarding 完成，关闭窗口                      |
 | app:quit                | renderer → main | invoke | 退出应用                                            |
+| auth:getCurrentUser     | renderer → main | invoke | 读当前登录用户（AuthUser \| null）                  |
+| auth:signIn             | renderer → main | invoke | 发送 Magic Link 邮件                                |
+| auth:signOut            | renderer → main | invoke | 登出（清 session + 通知后端）                       |
+| auth:openPricing        | renderer → main | invoke | 默认浏览器打开定价页                                |
+| auth:openSignin         | renderer → main | invoke | 打开独立 sign-in 窗口（440×420）                    |
+| auth:closeSignin        | renderer → main | send   | 关闭独立 sign-in 窗口                               |
+| auth:signedIn           | main → renderer | push   | 登录成功事件（payload: { email }）                  |
+| auth:signedOut          | main → renderer | push   | 登出事件                                            |
+| credits:get             | renderer → main | invoke | 读当前 credits meta（内存缓存）                     |
+| credits:refresh         | renderer → main | invoke | 强制从 /me 刷新 credits                             |
+
+## Response Meta Contract
+
+后端业务性失败响应（402 / 429）和分析成功响应，body 必须携带 `CreditsMeta`，前端据此渲染付费引导 / 余额信息，无需二次请求。
+
+| HTTP | 场景           | body.meta                       | UI 呈现                      |
+| ---- | -------------- | ------------------------------- | ---------------------------- |
+| 200  | 分析成功       | 扣费后最新 meta                 | footer 刷新 "N left"         |
+| 401  | 未登录         | —                               | paywall: Sign in             |
+| 402  | credits 耗尽   | `credits_remaining: 0`          | paywall: Upgrade             |
+| 429  | 当日 50 次上限 | `daily_usage_count` + plan 信息 | paywall: Daily limit reached |
+| 500  | 服务端错误     | —                               | 通用 Retry                   |
+
+**Rule of thumb**：任何"业务性"失败（用户能通过操作解决的）响应必须带 meta；Electron main 收到后存内存 + 推 `credits:update`，footer 与 Settings 同步更新。系统性错误（500 / 网络失败）不带 meta，走通用 Retry 路径。
 
 ## 当前开发进度
 
@@ -318,7 +377,13 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
   - Onboarding 第 4 页 + Settings ACCOUNT 区块
   - 非强制登录，未登录用户仍可使用
 
-- 6.2 ⬜ 使用额度管理（免费 5 次 + 订阅无限 + credit 扣减）— 第一次尝试已回退，详见下方复盘
+- 6.2 ✅ 使用额度管理（免费 5 次 + 订阅无限 + credit 扣减）
+  - Task 2 (597fdef) — 后端 requireAuth + credit gating + GET /me
+  - Task 3 (fc8ebf7) — Electron JWT header + credits meta 消费 + ErrorType 扩展（auth_required / no_credits / daily_limit）
+  - 契约补丁 (f71bb48) — 402 / 429 响应 body 必须带 CreditsMeta
+  - Task 4a (e10c82e) — footer credits 显示 + 三种 paywall ErrorPanel
+  - Task 4b (49b9dc9) — 独立 signin 窗口（440×420）+ SignInForm 抽象 + 15s Resend cooldown
+  - Task 4c (本次) — Settings ACCOUNT 补 plan/credits/Manage + idle 文案登录态分支 + 文档同步
 - 6.3 ⬜ Stripe 支付（周卡 $5.99 / 月卡 $12.99 / credit 包三档）
 - 6.4 ⬜ 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
@@ -350,6 +415,7 @@ snapcue/
 │   ├── env.d.ts           # import.meta.env 类型声明（SNAPCUE_API_URL/KEY）
 │   ├── preload.ts         # contextBridge → window.snapcue
 │   ├── store.ts           # JSON 文件设置持久化（app.getPath('userData')）
+│   ├── signin.ts          # 独立 Sign-in BrowserWindow（440×420，paywall 触发）
 │   └── onboarding.ts      # Onboarding BrowserWindow 创建/关闭
 ├── shared/                # 前后端共享类型
 │   └── types.ts           # IPC channel 定义、AnswerItem、AppSettings、DEFAULT_SETTINGS
@@ -367,8 +433,10 @@ snapcue/
 │       ├── idle-view.tsx        # 空闲态（首次使用引导 / 装饰圆点 + 快捷键提示）
 │       ├── loading-view.tsx     # 加载态（脉冲圆点 + 8s 超时提示）
 │       ├── permission-guide.tsx # 权限引导（dropdown 内，英文）
-│       ├── settings-view.tsx    # 设置页（快捷键录入+冲突检测+保存确认 + icon 选择 + Quit）
-│       └── onboarding-view.tsx  # Onboarding 3 页（Welcome → Shortcuts → Permission）
+│       ├── settings-view.tsx    # 设置页（快捷键录入+冲突检测+保存确认 + icon 选择 + ACCOUNT plan/credits/Manage + Quit）
+│       ├── signin-form.tsx      # 可复用 Magic Link 表单（邮箱输入 + 15s Resend cooldown）
+│       ├── signin-view.tsx      # 独立 sign-in 窗口入口（hash #signin，承载 SignInForm）
+│       └── onboarding-view.tsx  # Onboarding 4 页（Welcome → Shortcuts → Permission → SignIn）
 ├── backend/               # SnapCue API 服务端
 │   └── src/
 │       ├── server.ts      # Fastify app 入口（bodyLimit 10MB）

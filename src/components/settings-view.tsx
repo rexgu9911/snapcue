@@ -4,6 +4,7 @@ import logoWhite from '../assets/logo-white.png'
 interface SettingsViewProps {
   onBack: () => void
   user: AuthUser | null
+  meta: CreditsMeta | null
 }
 
 type RecordingField = 'silentCapture' | 'regionSelect' | 'toggleDropdown' | null
@@ -54,7 +55,7 @@ function eventToAccelerator(e: KeyboardEvent): string | null {
 
 const ICON_OPTIONS: TrayIcon[] = ['ghost', 'dot', 'book', 'bolt', 'square', 'input', 'shield', 'cn']
 
-export function SettingsView({ onBack, user }: SettingsViewProps) {
+export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
   const [hotkeys, setHotkeys] = useState({
     silentCapture: '',
     regionSelect: '',
@@ -161,7 +162,7 @@ export function SettingsView({ onBack, user }: SettingsViewProps) {
       </button>
 
       {/* Account section */}
-      <AccountSection user={user} />
+      <AccountSection user={user} meta={meta} />
 
       {/* Shortcuts section */}
       <div style={{ padding: '4px 10px 4px' }}>
@@ -265,35 +266,7 @@ function truncateEmail(email: string): string {
   return `${local.slice(0, 8)}...@${domain}`
 }
 
-function AccountSection({ user }: { user: AuthUser | null }) {
-  const [expanded, setExpanded] = useState(false)
-  const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
-
-  // Collapse the sign-in form whenever we flip between signed-in / signed-out.
-  useEffect(() => {
-    setExpanded(false)
-    setEmail('')
-    setStatus('idle')
-    setErrorMsg('')
-  }, [user])
-
-  const canSubmit = status !== 'sending' && status !== 'sent' && email.trim().length > 0
-
-  const handleSubmit = async () => {
-    if (!canSubmit) return
-    setStatus('sending')
-    setErrorMsg('')
-    const res = await window.snapcue.signIn(email.trim())
-    if (res.success) {
-      setStatus('sent')
-    } else {
-      setStatus('error')
-      setErrorMsg(res.error ?? 'Failed to send link')
-    }
-  }
-
+function AccountSection({ user, meta }: { user: AuthUser | null; meta: CreditsMeta | null }) {
   return (
     <div style={{ padding: '4px 10px 4px' }}>
       <div
@@ -310,109 +283,122 @@ function AccountSection({ user }: { user: AuthUser | null }) {
       </div>
 
       {user ? (
-        <div className="flex items-center justify-between" style={{ padding: '3px 0', gap: '8px' }}>
-          <span
-            title={user.email}
-            style={{
-              fontSize: '11px',
-              color: 'rgba(255,255,255,0.6)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              flex: 1,
-            }}
+        <>
+          <div
+            className="flex items-center justify-between"
+            style={{ padding: '3px 0', gap: '8px' }}
           >
-            {truncateEmail(user.email)}
-          </span>
-          <button
-            onClick={() => window.snapcue.signOut()}
-            style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
-          >
-            Sign out
-          </button>
-        </div>
-      ) : !expanded ? (
+            <span
+              title={user.email}
+              style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.6)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+              }}
+            >
+              {truncateEmail(user.email)}
+            </span>
+            <button
+              onClick={() => window.snapcue.signOut()}
+              style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+            >
+              Sign out
+            </button>
+          </div>
+          <PlanDetails meta={meta} />
+        </>
+      ) : (
         <div className="flex items-center justify-between" style={{ padding: '3px 0' }}>
           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Not signed in</span>
           <button
-            onClick={() => setExpanded(true)}
-            className="font-mono"
+            onClick={() => window.snapcue.openSignin()}
+            className="transition-colors"
             style={{
               fontSize: '11px',
-              color: 'rgba(255,255,255,0.4)',
-              background: 'rgba(255,255,255,0.06)',
-              padding: '2px 8px',
+              fontWeight: 500,
+              color: 'rgba(255,255,255,0.7)',
+              background: 'rgba(255,255,255,0.08)',
+              padding: '2px 10px',
               borderRadius: '4px',
-              transition: 'background 0.2s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
           >
             Sign in
           </button>
         </div>
-      ) : status === 'sent' ? (
-        <p
-          style={{
-            fontSize: '11px',
-            color: 'rgba(134,239,172,0.85)',
-            padding: '4px 0 2px',
-          }}
-        >
-          Check your email.
-        </p>
-      ) : (
-        <div className="flex flex-col" style={{ gap: '4px', padding: '2px 0' }}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              if (status === 'error') setStatus('idle')
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSubmit()
-              if (e.key === 'Escape') setExpanded(false)
-            }}
-            placeholder="you@example.com"
-            autoFocus
-            autoComplete="email"
-            spellCheck={false}
-            style={{
-              width: '100%',
-              padding: '4px 8px',
-              fontSize: '11px',
-              color: 'rgba(255,255,255,0.9)',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '4px',
-              outline: 'none',
-            }}
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            style={{
-              width: '100%',
-              padding: '4px 0',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: 500,
-              color: canSubmit ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
-              background: canSubmit ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-              cursor: canSubmit ? 'pointer' : 'default',
-              transition: 'background 0.2s',
-            }}
-          >
-            {status === 'sending' ? 'Sending...' : 'Send Magic Link'}
-          </button>
-          {status === 'error' && (
-            <p style={{ fontSize: '10px', color: 'rgba(239,68,68,0.8)' }}>{errorMsg}</p>
-          )}
-        </div>
       )}
+    </div>
+  )
+}
+
+function PlanDetails({ meta }: { meta: CreditsMeta | null }) {
+  if (!meta) return null
+
+  const hasActiveSubscription =
+    meta.subscription_status === 'active' &&
+    meta.subscription_expires_at !== null &&
+    new Date(meta.subscription_expires_at).getTime() > Date.now()
+
+  if (hasActiveSubscription) {
+    const planLabel = meta.subscription_type === 'weekly' ? 'Weekly' : 'Monthly'
+    const renewsLabel = new Date(meta.subscription_expires_at!).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+    return (
+      <>
+        <InfoRow label="Plan" value={planLabel} />
+        <InfoRow label="Renews" value={renewsLabel} />
+        <ManageLink label="Manage subscription" />
+      </>
+    )
+  }
+
+  const credits = Math.max(0, meta.credits_remaining)
+  return (
+    <>
+      <InfoRow label="Plan" value="Free" />
+      <InfoRow label="Credits" value={`${credits}`} />
+      <ManageLink label="Get more credits" />
+    </>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between" style={{ padding: '3px 0' }}>
+      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+      <span className="font-mono" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function ManageLink({ label }: { label: string }) {
+  return (
+    <div style={{ textAlign: 'right', paddingTop: '2px' }}>
+      <button
+        onClick={() => window.snapcue.openPricing()}
+        className="transition-colors"
+        style={{
+          fontSize: '10px',
+          fontWeight: 500,
+          color: 'rgba(16,185,129,0.75)',
+          background: 'transparent',
+          padding: '2px 0',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(16,185,129,1)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(16,185,129,0.75)')}
+      >
+        {label} →
+      </button>
     </div>
   )
 }

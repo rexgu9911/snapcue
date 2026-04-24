@@ -50,7 +50,7 @@ function ErrorPanel({ error, meta, onOpenSettings, onDismiss }: ErrorPanelProps)
             color: 'rgba(255,255,255,0.7)',
             background: 'rgba(255,255,255,0.08)',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.14)')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
         >
           Sign in
@@ -283,10 +283,10 @@ export function App() {
       {/* Content area */}
       <div className="min-h-0 flex-1" key={view} style={{ animation: 'fadeIn 150ms ease' }}>
         {view === 'settings' ? (
-          <SettingsView onBack={() => setView('main')} user={user} />
+          <SettingsView onBack={() => setView('main')} user={user} meta={meta} />
         ) : (
           <>
-            {status === 'ready' && <IdleView hasFirstCapture={hasFirstCapture} />}
+            {status === 'ready' && <IdleView user={user} hasFirstCapture={hasFirstCapture} />}
 
             {status === 'no-permission' && <PermissionGuide />}
 

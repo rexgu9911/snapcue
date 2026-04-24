@@ -49,11 +49,25 @@ function KeyCap({ part }: { part: KeyPart }) {
         borderTop: '1px solid rgba(255,255,255,0.08)',
       }}
     >
-      <span style={{ fontSize: isModifier ? '9px' : '11px', fontWeight: 500, color: 'rgba(255,255,255,0.35)', lineHeight: 1 }}>
+      <span
+        style={{
+          fontSize: isModifier ? '9px' : '11px',
+          fontWeight: 500,
+          color: 'rgba(255,255,255,0.35)',
+          lineHeight: 1,
+        }}
+      >
         {part.symbol}
       </span>
       {part.label && (
-        <span style={{ fontSize: '7px', color: 'rgba(255,255,255,0.2)', lineHeight: 1, marginTop: '1px' }}>
+        <span
+          style={{
+            fontSize: '7px',
+            color: 'rgba(255,255,255,0.2)',
+            lineHeight: 1,
+            marginTop: '1px',
+          }}
+        >
           {part.label}
         </span>
       )}
@@ -61,7 +75,12 @@ function KeyCap({ part }: { part: KeyPart }) {
   )
 }
 
-export function IdleView({ hasFirstCapture }: { hasFirstCapture: boolean }) {
+interface IdleViewProps {
+  user: AuthUser | null
+  hasFirstCapture: boolean
+}
+
+export function IdleView({ user, hasFirstCapture }: IdleViewProps) {
   const [regionAccel, setRegionAccel] = useState(DEFAULT_SETTINGS.hotkeys.regionSelect)
   const [silentAccel, setSilentAccel] = useState(DEFAULT_SETTINGS.hotkeys.silentCapture)
   const [toggleAccel, setToggleAccel] = useState(DEFAULT_SETTINGS.hotkeys.toggleDropdown)
@@ -73,6 +92,51 @@ export function IdleView({ hasFirstCapture }: { hasFirstCapture: boolean }) {
       setToggleAccel(s.hotkeys.toggleDropdown)
     })
   }, [])
+
+  // Login is required to call /analyze. Before first capture we prompt sign-in
+  // here instead of letting the user hit the shortcut and see an auth_required
+  // paywall only after a failed attempt.
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center" style={{ padding: '16px 12px' }}>
+        <span
+          style={{
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.6)',
+            marginBottom: '4px',
+          }}
+        >
+          Sign in to get started
+        </span>
+        <span
+          style={{
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.3)',
+            marginBottom: '10px',
+          }}
+        >
+          Magic link · no password
+        </span>
+        <button
+          onClick={() => window.snapcue.openSignin()}
+          className="transition-colors"
+          style={{
+            padding: '4px 14px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.7)',
+            background: 'rgba(255,255,255,0.08)',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+        >
+          Sign in
+        </button>
+      </div>
+    )
+  }
 
   if (!hasFirstCapture) {
     return (
