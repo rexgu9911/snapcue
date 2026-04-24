@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import logoWhite from '../assets/logo-white.png'
+import { SignInForm } from './signin-form'
 
 type Page = 0 | 1 | 2 | 3
 
@@ -856,25 +857,6 @@ function PermissionContent({ onBack }: { onBack: () => void }) {
 // ── Page 4: Sign In ──────────────────────────────────────────────────────────
 
 function SignInContent({ onBack }: { onBack: () => void }) {
-  const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
-
-  const canSubmit = status !== 'sending' && status !== 'sent' && email.trim().length > 0
-
-  const handleSubmit = async () => {
-    if (!canSubmit) return
-    setStatus('sending')
-    setErrorMsg('')
-    const res = await window.snapcue.signIn(email.trim())
-    if (res.success) {
-      setStatus('sent')
-    } else {
-      setStatus('error')
-      setErrorMsg(res.error ?? 'Failed to send magic link')
-    }
-  }
-
   return (
     <>
       <BackButton onClick={onBack} />
@@ -905,87 +887,7 @@ function SignInContent({ onBack }: { onBack: () => void }) {
           </p>
         </div>
 
-        {status === 'sent' ? (
-          <div
-            style={{
-              marginTop: '4px',
-              padding: '10px 16px',
-              borderRadius: '8px',
-              background: 'rgba(34,197,94,0.08)',
-              border: '1px solid rgba(34,197,94,0.2)',
-              fontSize: '12px',
-              color: 'rgba(134,239,172,0.9)',
-              textAlign: 'center',
-            }}
-          >
-            Check your email for the magic link.
-          </div>
-        ) : (
-          <div className="flex flex-col" style={{ width: '260px', gap: '8px' }}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (status === 'error') setStatus('idle')
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSubmit()
-              }}
-              placeholder="you@example.com"
-              autoFocus
-              autoComplete="email"
-              spellCheck={false}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                fontSize: '13px',
-                color: 'rgba(255,255,255,0.9)',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px',
-                outline: 'none',
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)')}
-              onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
-            />
-            <button
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              className="transition-colors duration-200"
-              style={{
-                width: '100%',
-                padding: '8px 20px',
-                background: canSubmit ? '#EDEDED' : 'rgba(255,255,255,0.12)',
-                color: canSubmit ? '#0A0A0A' : 'rgba(255,255,255,0.4)',
-                fontSize: '13px',
-                fontWeight: 500,
-                borderRadius: '8px',
-                border: 'none',
-                cursor: canSubmit ? 'pointer' : 'default',
-              }}
-              onMouseEnter={(e) => {
-                if (canSubmit) e.currentTarget.style.background = '#FFFFFF'
-              }}
-              onMouseLeave={(e) => {
-                if (canSubmit) e.currentTarget.style.background = '#EDEDED'
-              }}
-            >
-              {status === 'sending' ? 'Sending...' : 'Send Magic Link'}
-            </button>
-            {status === 'error' && (
-              <p
-                style={{
-                  fontSize: '11px',
-                  color: 'rgba(239,68,68,0.8)',
-                  textAlign: 'center',
-                }}
-              >
-                {errorMsg}
-              </p>
-            )}
-          </div>
-        )}
+        <SignInForm />
       </div>
     </>
   )

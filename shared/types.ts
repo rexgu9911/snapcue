@@ -107,6 +107,7 @@ export interface MainToRendererEvents {
 export interface RendererToMainEvents {
   'dropdown:hide': void
   'dropdown:resize': number
+  'auth:closeSignin': void
 }
 
 /**
@@ -126,6 +127,7 @@ export interface RendererToMainCommands {
   'auth:signIn': { args: string; return: SignInResult }
   'auth:signOut': { args: void; return: void }
   'auth:openPricing': { args: void; return: void }
+  'auth:openSignin': { args: void; return: void }
   'credits:get': { args: void; return: CreditsMeta | null }
   'credits:refresh': { args: void; return: CreditsMeta | null }
 }
@@ -145,6 +147,7 @@ export const IPC = {
   // Renderer → Main (fire-and-forget)
   DROPDOWN_HIDE: 'dropdown:hide',
   DROPDOWN_RESIZE: 'dropdown:resize',
+  AUTH_CLOSE_SIGNIN: 'auth:closeSignin',
 
   // Renderer → Main (invoke)
   CAPTURE_START: 'capture:start',
@@ -159,6 +162,7 @@ export const IPC = {
   AUTH_SIGN_IN: 'auth:signIn',
   AUTH_SIGN_OUT: 'auth:signOut',
   AUTH_OPEN_PRICING: 'auth:openPricing',
+  AUTH_OPEN_SIGNIN: 'auth:openSignin',
   CREDITS_GET: 'credits:get',
   CREDITS_REFRESH: 'credits:refresh',
 } as const

@@ -50,6 +50,8 @@ interface SnapCueAPI {
   signIn: (email: string) => Promise<SignInResult>
   signOut: () => Promise<void>
   openPricing: () => Promise<void>
+  openSignin: () => Promise<void>
+  closeSignin: () => void
   onAuthSignedIn: (cb: (payload: { email: string }) => void) => () => void
   onAuthSignedOut: (cb: () => void) => () => void
 }

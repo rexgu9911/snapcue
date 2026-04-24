@@ -2,6 +2,7 @@ import { app, BrowserWindow, globalShortcut } from 'electron'
 import { initTray } from './tray'
 import { initIpc, getSettings, refreshCreditsMeta } from './ipc'
 import { createOnboardingWindow } from './onboarding'
+import { closeSigninWindow } from './signin'
 import { setStoredSession } from './auth'
 import { IPC } from '../shared/types'
 
@@ -45,6 +46,10 @@ async function handleDeepLink(raw: string): Promise<void> {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send(IPC.AUTH_SIGNED_IN, payload)
   }
+
+  // Close the signin window (if it was the entry point) — routes through
+  // the same closer used by the Cancel button for cleanup consistency.
+  closeSigninWindow()
 
   // Pull credits meta immediately after login so the footer / settings
   // render with a real balance without waiting for the first capture.

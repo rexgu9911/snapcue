@@ -22,6 +22,7 @@ import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 import { config } from './config'
 import { clearStoredSession, getCurrentUser, getStoredSession, signInWithMagicLink } from './auth'
+import { createSigninWindow, closeSigninWindow } from './signin'
 
 const API_TIMEOUT_MS = 30_000
 const PRICING_URL = 'https://snapcue-web.vercel.app/pricing'
@@ -418,6 +419,14 @@ export async function initIpc(): Promise<void> {
 
   ipcMain.handle(IPC.AUTH_OPEN_PRICING, () => {
     shell.openExternal(PRICING_URL)
+  })
+
+  ipcMain.handle(IPC.AUTH_OPEN_SIGNIN, () => {
+    createSigninWindow()
+  })
+
+  ipcMain.on(IPC.AUTH_CLOSE_SIGNIN, () => {
+    closeSigninWindow()
   })
 
   ipcMain.handle(IPC.CREDITS_GET, (): CreditsMeta | null => {

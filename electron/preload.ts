@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld('snapcue', {
   signIn: (email: string) => ipcRenderer.invoke(IPC.AUTH_SIGN_IN, email) as Promise<SignInResult>,
   signOut: () => ipcRenderer.invoke(IPC.AUTH_SIGN_OUT) as Promise<void>,
   openPricing: () => ipcRenderer.invoke(IPC.AUTH_OPEN_PRICING) as Promise<void>,
+  openSignin: () => ipcRenderer.invoke(IPC.AUTH_OPEN_SIGNIN) as Promise<void>,
+  closeSignin: () => ipcRenderer.send(IPC.AUTH_CLOSE_SIGNIN),
   onAuthSignedIn: (cb: (payload: { email: string }) => void) => {
     const listener = (_e: Electron.IpcRendererEvent, payload: { email: string }) => cb(payload)
     ipcRenderer.on(IPC.AUTH_SIGNED_IN, listener)

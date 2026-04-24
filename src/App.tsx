@@ -40,17 +40,18 @@ function ErrorPanel({ error, meta, onOpenSettings, onDismiss }: ErrorPanelProps)
           Magic link · no password
         </p>
         <button
-          disabled
-          className="w-full"
+          onClick={() => window.snapcue.openSignin()}
+          className="w-full transition-colors"
           style={{
             padding: '5px 0',
             borderRadius: '4px',
             fontSize: '11px',
             fontWeight: 500,
-            color: 'rgba(255,255,255,0.35)',
+            color: 'rgba(255,255,255,0.7)',
             background: 'rgba(255,255,255,0.08)',
-            cursor: 'default',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.14)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
         >
           Sign in
         </button>
