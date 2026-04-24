@@ -9,3 +9,4 @@ dist/
 *.env.*
 .env.*
 !.env.example
+build/*.original.icns
