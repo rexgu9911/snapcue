@@ -292,6 +292,17 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 **Rule of thumb**：任何"业务性"失败（用户能通过操作解决的）响应必须带 meta；Electron main 收到后存内存 + 推 `credits:update`，footer 与 Settings 同步更新。系统性错误（500 / 网络失败）不带 meta，走通用 Retry 路径。
 
+## Session 续接指引
+
+> 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
+
+- **当前 phase**：Phase 6.2 ✅（2026-04-24 ship，commit `88bcaaa`）/ Phase 6.3 ⬜ 起手 checklist 见下方 6.3 条目
+- **下次 session 第一步**：阅读 Phase 6.3 起手 checklist，按编号顺序执行。第 1 步（定价正式拍板）必须先和用户对齐，不要自行决定数字写入文档
+- **已知技术债账本**：
+  - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 未做，建议 6.3 开工前先跑一次，避免真发现打包相关 bug 时混入 Stripe 调试
+  - `## 定价方案` 小节仍是 6.2 遗留 draft（数字没过最终拍板点头），6.3 第 1 步正式拍板后覆盖
+  - Stripe 付款完成 → 客户端 credits 刷新机制待设计。最轻方案：dropdown 从 hidden → visible 时调 `credits:refresh`；或 openPricing 完成后几秒内 poll 一次 `/me`。可延后到 6.3 中后期实现
+
 ## 当前开发进度
 
 ### ✅ 已完成
@@ -384,7 +395,14 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
   - Task 4a (e10c82e) — footer credits 显示 + 三种 paywall ErrorPanel
   - Task 4b (49b9dc9) — 独立 signin 窗口（440×420）+ SignInForm 抽象 + 15s Resend cooldown
   - Task 4c (本次) — Settings ACCOUNT 补 plan/credits/Manage + idle 文案登录态分支 + 文档同步
-- 6.3 ⬜ Stripe 支付（周卡 $5.99 / 月卡 $12.99 / credit 包三档）
+- 6.3 ⬜ Stripe 支付 — **起手 checklist（下次 session 按编号顺序执行）**
+  1. **定价正式拍板** — `## 定价方案` 目前是 6.2 遗留 draft，6.3 第一件事是和用户对齐最终数字（周卡 / 月卡 / credit 包三档）并写入 CLAUDE.md。写入前必须先确认，不要自作主张
+  2. **Stripe 账号准备** — 注册（若未有）→ 切到 test mode → 记录 publishable key + secret key。先在 test mode 跑通 end-to-end，再切 live
+  3. **Stripe Products / Prices 创建** — 按第 1 步拍板的定价，在 Stripe Dashboard 建三个 Product（weekly subscription / monthly subscription / credit pack），每个 Product 对应一个 Price
+  4. **Webhook endpoint 设计** — `POST /webhooks/stripe`：签名校验（`Stripe-Signature` header + webhook secret）；idempotency key 防重复处理；最少处理 `checkout.session.completed` / `customer.subscription.updated` / `customer.subscription.deleted`
+  5. **profiles.stripe_customer_id 字段落地** — 6.2 schema 已预留该字段，6.3 首次 checkout 时创建 Stripe Customer 并回写该字段；后续订阅状态变更通过 customer_id 定位 profile
+  6. **Checkout flow 串通** — Electron 点 Upgrade → `openExternal(/pricing)` → 官网 Stripe Checkout → 成功后用户回到 app → webhook 异步更新 profile
+  7. **设计并实现 credits 刷新机制** — 详见 `## Session 续接指引` 的技术债账本（可延后到 6.3 中后期）
 - 6.4 ⬜ 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
 **阶段 7 — 打包发布**
