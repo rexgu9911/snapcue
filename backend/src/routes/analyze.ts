@@ -81,11 +81,15 @@ export const analyzeRoute: FastifyPluginAsync = async (app) => {
       // 1. Reserve credit atomically.
       const reservation = await checkAndReserveCredit(user.id)
       if (!reservation.ok) {
+        // Business-failure responses carry meta so the client footer
+        // reflects reality the moment the paywall shows. Auth / network
+        // failures omit it (see 401 / 502 ai_unavailable / 504 below).
+        const meta = await getCreditsMeta(user.id)
         if (reservation.reason === 'daily_limit') {
-          return reply.code(429).send({ error: 'daily_limit' })
+          return reply.code(429).send({ error: 'daily_limit', meta })
         }
         // no_credits and no_profile both surface as paywall to the client.
-        return reply.code(402).send({ error: 'no_credits' })
+        return reply.code(402).send({ error: 'no_credits', meta })
       }
       const source = reservation.source
 

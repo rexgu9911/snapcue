@@ -114,12 +114,23 @@ describe('POST /analyze', () => {
     expect(mockUsageLogsInsert).toHaveBeenCalled()
   })
 
-  it('returns 402 when reserve_credit reports no_credits', async () => {
+  it('returns 402 + meta (all zeros) when reserve_credit reports no_credits', async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: 'user-456', email: 'out@example.com' } },
       error: null,
     })
     mockRpc.mockResolvedValueOnce({ data: { ok: false, reason: 'no_credits' }, error: null })
+    mockProfileSingle.mockResolvedValue({
+      data: {
+        free_credits_remaining: 0,
+        paid_credits_balance: 0,
+        subscription_status: 'none',
+        subscription_type: null,
+        subscription_expires_at: null,
+        daily_usage_count: 0,
+      },
+      error: null,
+    })
 
     const app = await buildApp()
     const res = await app.inject({
@@ -130,7 +141,55 @@ describe('POST /analyze', () => {
     })
 
     expect(res.statusCode).toBe(402)
-    expect(res.json()).toEqual({ error: 'no_credits' })
+    expect(res.json()).toEqual({
+      error: 'no_credits',
+      meta: {
+        credits_remaining: 0,
+        daily_usage_count: 0,
+        subscription_status: 'none',
+        subscription_type: null,
+        subscription_expires_at: null,
+      },
+    })
+    expect(mockOpenAICreate).not.toHaveBeenCalled()
+  })
+
+  it('returns 429 + meta (unlimited + subscription_type) on daily_limit', async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: 'sub-user', email: 'sub@example.com' } },
+      error: null,
+    })
+    mockRpc.mockResolvedValueOnce({ data: { ok: false, reason: 'daily_limit' }, error: null })
+    mockProfileSingle.mockResolvedValue({
+      data: {
+        free_credits_remaining: 0,
+        paid_credits_balance: 0,
+        subscription_status: 'active',
+        subscription_type: 'monthly',
+        subscription_expires_at: '2099-12-31T00:00:00Z',
+        daily_usage_count: 50,
+      },
+      error: null,
+    })
+
+    const app = await buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/analyze',
+      headers: { authorization: 'Bearer fake-jwt' },
+      payload: { image: 'iVBORw0KGgo=' },
+    })
+
+    expect(res.statusCode).toBe(429)
+    const body = res.json()
+    expect(body.error).toBe('daily_limit')
+    expect(body.meta).toEqual({
+      credits_remaining: -1,
+      daily_usage_count: 50,
+      subscription_status: 'active',
+      subscription_type: 'monthly',
+      subscription_expires_at: '2099-12-31T00:00:00Z',
+    })
     expect(mockOpenAICreate).not.toHaveBeenCalled()
   })
 
