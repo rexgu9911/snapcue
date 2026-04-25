@@ -292,11 +292,42 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 6.3 进行中 — tasks 1-3 ✅（定价 / Stripe 账号 / 4 个 test-mode Products），下一步 **task 4 webhook endpoint 设计**
-- **下次 session 第一步**：Phase 6.3 task 4 — `POST /webhooks/stripe` 路由（签名校验 + idempotency + 三个核心 event 处理）；同时让用户在 Stripe Dashboard 注册 webhook endpoint 拿 `whsec_...` 填入 `backend/.env`
+- **当前 phase**：Phase 6.3 进行中 — tasks 1-3 ✅（定价拍板 / Stripe 账号 / 4 个 test-mode Products），下一步 **task 4 webhook endpoint**
+
+- **本地 git 状态（2026-04-24 close-of-session）**：本地**领先 origin/main 3 个 commit 未 push**：
+  - `b6f2bd1` feat(stripe): Phase 6.3 task 2-3 scaffolding
+  - `83961b3` docs(pricing): finalize Phase 6.3 task 1
+  - `e42c86a` fix(backend): zod env schema + sync docs（含 PR 2 retrospective 4 项中 3 项闭环 + 数据库 schema 修复 by 用户手跑 migration）
+  
+  新 session 开头先 `git status` + `git log --oneline -5` 验证状态；用户可能已 push 也可能没有
+
+- **`backend/.env` 当前状态**（gitignored，新 session 不可见，列在这里供 AI agent 心里有数）：
+  - ✅ OPENAI_API_KEY / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 全部已填
+  - ✅ 4 个 `STRIPE_PRICE_*` 已填（test mode 真实 ID）
+  - ⬜ `STRIPE_SECRET_KEY` 注释状态，task 4 / 6 第一次真用到时让用户从 Dashboard 复制 `sk_test_...`
+  - ⬜ `STRIPE_WEBHOOK_SECRET` 注释状态，task 4 注册 endpoint 后用户给 `whsec_...`
+
+- **下次 session 第一步**（task 4 — webhook endpoint）：
+
+  按这个顺序执行，第 1 步必须先和用户对齐：
+  1. **和用户对齐本地 webhook 转发策略**。推荐 **Stripe CLI**（`stripe listen --forward-to localhost:3001/webhooks/stripe`，官方工具，一行起转发，输出立即给 `whsec_...`）。备选 ngrok（多一层依赖）/ Railway prod URL（每次改代码要 deploy）
+  2. 让用户启动 Stripe CLI / 注册 endpoint，复制 `whsec_...` 填进 `backend/.env`，同时把 `STRIPE_SECRET_KEY` 也填了
+  3. 实现 `POST /webhooks/stripe`：
+     - **raw body parser**（Fastify 默认 JSON parse；webhook 签名校验需要原始 bytes，给这个路由单独配）
+     - 签名校验 `stripe.webhooks.constructEvent(rawBody, sig, env.STRIPE_WEBHOOK_SECRET)`
+     - idempotency：用 `event.id` 做 dedup key（新表 `webhook_events` 或 unique constraint）
+     - 三个 handler（最少版）：
+       - `checkout.session.completed` → 加 credits 或 set subscription_status='active'
+       - `customer.subscription.updated` → 同步 status / expires_at
+       - `customer.subscription.deleted` → status='canceled'
+     - 单元测试：mock `constructEvent`，三个 handler 路径各覆盖一个 happy + 一个 idempotency 重复 case
+  4. 把 `env.ts` 中相关 STRIPE 字段从 `.optional()` 收紧成 required（route 既然依赖了，必须 fail-fast）
+  5. CLAUDE.md 把 task 4 标 ✅、session 续接指针挪到 task 5
+
 - **已知技术债账本**：
-  - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 未做，建议 6.3 开工前先跑一次，避免真发现打包相关 bug 时混入 Stripe 调试
+  - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 未做，建议 6.3 中后期补
   - Stripe 付款完成 → 客户端 credits 刷新机制待设计。最轻方案：dropdown 从 hidden → visible 时调 `credits:refresh`；或 openPricing 完成后几秒内 poll 一次 `/me`。可延后到 6.3 中后期实现
+  - 上 live mode 之前要把 `.env` 的 test 值替换为 live 值（Stripe / Supabase 都是同一规则：测试和生产的 keys 完全不同）
 
 ## 当前开发进度
 
