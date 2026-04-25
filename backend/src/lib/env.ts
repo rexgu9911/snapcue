@@ -24,25 +24,23 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   NODE_ENV: z.string().optional(),
 
-  // Stripe (Phase 6.3). All optional during early 6.3 — tightened to required
-  // when the routes that consume them are wired up (task 4 webhook + task 6
-  // checkout). Ref: backend/.env.example for naming + Dashboard mapping.
+  // Stripe (Phase 6.3). SECRET_KEY + WEBHOOK_SECRET are required as of task 4
+  // (webhook handler depends on both). The four PRICE_* vars stay optional
+  // until task 6 wires up checkout — tightened then.
   STRIPE_SECRET_KEY: z
     .string()
     .min(1)
     .refine(
       (v) => v.startsWith('sk_test_') || v.startsWith('sk_live_'),
       'STRIPE_SECRET_KEY must start with sk_test_ or sk_live_',
-    )
-    .optional(),
+    ),
   STRIPE_WEBHOOK_SECRET: z
     .string()
     .min(1)
     .refine(
       (v) => v.startsWith('whsec_'),
       'STRIPE_WEBHOOK_SECRET must start with whsec_',
-    )
-    .optional(),
+    ),
   STRIPE_PRICE_WEEKLY: z.string().startsWith('price_').optional(),
   STRIPE_PRICE_MONTHLY: z.string().startsWith('price_').optional(),
   STRIPE_PRICE_PACK_30: z.string().startsWith('price_').optional(),

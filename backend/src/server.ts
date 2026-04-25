@@ -6,6 +6,7 @@ import cors from '@fastify/cors'
 import { analyzeRoute } from './routes/analyze.js'
 import { healthRoute } from './routes/health.js'
 import { meRoute } from './routes/me.js'
+import { stripeWebhookRoute } from './routes/stripe-webhook.js'
 import { registerAuth } from './middleware/auth.js'
 
 export async function buildApp() {
@@ -24,6 +25,8 @@ export async function buildApp() {
   if (snapcueApiKey) {
     app.addHook('onRequest', async (request, reply) => {
       if (request.method === 'GET' && request.url === '/health') return
+      // Stripe webhooks authenticate via Stripe-Signature, not x-api-key.
+      if (request.method === 'POST' && request.url === '/webhooks/stripe') return
       if (request.headers['x-api-key'] !== snapcueApiKey) {
         return reply.status(401).send({ error: 'unauthorized' })
       }
@@ -36,6 +39,7 @@ export async function buildApp() {
   app.register(analyzeRoute)
   app.register(meRoute)
   app.register(healthRoute)
+  app.register(stripeWebhookRoute)
 
   return app
 }
