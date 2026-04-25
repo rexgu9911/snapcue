@@ -292,8 +292,8 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 6.3 进行中 — task 1 ✅ 定价拍板（2026-04-24），下一步 **task 2 Stripe 账号准备**
-- **下次 session 第一步**：Phase 6.3 task 2 — Stripe 账号注册 / 切 test mode / 记录 publishable + secret key
+- **当前 phase**：Phase 6.3 进行中 — tasks 1-3 ✅（定价 / Stripe 账号 / 4 个 test-mode Products），下一步 **task 4 webhook endpoint 设计**
+- **下次 session 第一步**：Phase 6.3 task 4 — `POST /webhooks/stripe` 路由（签名校验 + idempotency + 三个核心 event 处理）；同时让用户在 Stripe Dashboard 注册 webhook endpoint 拿 `whsec_...` 填入 `backend/.env`
 - **已知技术债账本**：
   - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 未做，建议 6.3 开工前先跑一次，避免真发现打包相关 bug 时混入 Stripe 调试
   - Stripe 付款完成 → 客户端 credits 刷新机制待设计。最轻方案：dropdown 从 hidden → visible 时调 `credits:refresh`；或 openPricing 完成后几秒内 poll 一次 `/me`。可延后到 6.3 中后期实现
@@ -392,8 +392,8 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   - Task 4c (本次) — Settings ACCOUNT 补 plan/credits/Manage + idle 文案登录态分支 + 文档同步
 - 6.3 ⬜ Stripe 支付 — **起手 checklist**
   1. ✅ **定价正式拍板**（2026-04-24，详见 `## 定价方案`）—— 免费 5 credits + 周卡 $5.99 + 月卡 $12.99 + 30/$4.99 + 100/$9.99，订阅 50/day cap
-  2. ⬜ **Stripe 账号准备** — 注册（若未有）→ 切到 test mode → 记录 publishable key + secret key。先在 test mode 跑通 end-to-end，再切 live
-  3. ⬜ **Stripe Products / Prices 创建** — 4 个 Product（weekly sub / monthly sub / 30-credit pack / 100-credit pack），每个 Product 对应一个 Price
+  2. ✅ **Stripe 账号准备**（2026-04-24）— test mode keys 拿到（用户密码管理器）；secret key 占位符已写入 `backend/.env`
+  3. ✅ **Stripe Products / Prices 创建**（2026-04-24）— 4 个 Product 已建在 test mode，price IDs 写入 `backend/.env`：`STRIPE_PRICE_WEEKLY` / `MONTHLY` / `PACK_30` / `PACK_100`。zod schema 在 `lib/env.ts` 添加 optional 校验（含 `price_` / `sk_test|live_` 前缀检测），routes 接入时再收紧成 required
   4. ⬜ **Webhook endpoint 设计** — `POST /webhooks/stripe`：签名校验（`Stripe-Signature` header + webhook secret）；idempotency key 防重复处理；最少处理 `checkout.session.completed` / `customer.subscription.updated` / `customer.subscription.deleted`
   5. ⬜ **profiles.stripe_customer_id 字段落地** — 6.2 schema 已预留该字段，6.3 首次 checkout 时创建 Stripe Customer 并回写该字段；后续订阅状态变更通过 customer_id 定位 profile
   6. ⬜ **Checkout flow 串通** — Electron 点 Upgrade → `openExternal(/pricing)` → 官网 Stripe Checkout → 成功后用户回到 app → webhook 异步更新 profile

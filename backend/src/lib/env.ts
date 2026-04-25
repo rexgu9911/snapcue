@@ -23,6 +23,30 @@ const schema = z.object({
   SNAPCUE_API_KEY: z.string().min(1).optional(),
   PORT: z.coerce.number().int().positive().default(3001),
   NODE_ENV: z.string().optional(),
+
+  // Stripe (Phase 6.3). All optional during early 6.3 — tightened to required
+  // when the routes that consume them are wired up (task 4 webhook + task 6
+  // checkout). Ref: backend/.env.example for naming + Dashboard mapping.
+  STRIPE_SECRET_KEY: z
+    .string()
+    .min(1)
+    .refine(
+      (v) => v.startsWith('sk_test_') || v.startsWith('sk_live_'),
+      'STRIPE_SECRET_KEY must start with sk_test_ or sk_live_',
+    )
+    .optional(),
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .min(1)
+    .refine(
+      (v) => v.startsWith('whsec_'),
+      'STRIPE_WEBHOOK_SECRET must start with whsec_',
+    )
+    .optional(),
+  STRIPE_PRICE_WEEKLY: z.string().startsWith('price_').optional(),
+  STRIPE_PRICE_MONTHLY: z.string().startsWith('price_').optional(),
+  STRIPE_PRICE_PACK_30: z.string().startsWith('price_').optional(),
+  STRIPE_PRICE_PACK_100: z.string().startsWith('price_').optional(),
 })
 
 const parsed = schema.safeParse(process.env)
