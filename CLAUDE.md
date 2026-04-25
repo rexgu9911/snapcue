@@ -292,11 +292,10 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 6.2 ✅（2026-04-24 ship，commit `88bcaaa`）/ Phase 6.3 ⬜ 起手 checklist 见下方 6.3 条目
-- **下次 session 第一步**：阅读 Phase 6.3 起手 checklist，按编号顺序执行。第 1 步（定价正式拍板）必须先和用户对齐，不要自行决定数字写入文档
+- **当前 phase**：Phase 6.3 进行中 — task 1 ✅ 定价拍板（2026-04-24），下一步 **task 2 Stripe 账号准备**
+- **下次 session 第一步**：Phase 6.3 task 2 — Stripe 账号注册 / 切 test mode / 记录 publishable + secret key
 - **已知技术债账本**：
   - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 未做，建议 6.3 开工前先跑一次，避免真发现打包相关 bug 时混入 Stripe 调试
-  - `## 定价方案` 小节仍是 6.2 遗留 draft（数字没过最终拍板点头），6.3 第 1 步正式拍板后覆盖
   - Stripe 付款完成 → 客户端 credits 刷新机制待设计。最轻方案：dropdown 从 hidden → visible 时调 `credits:refresh`；或 openPricing 完成后几秒内 poll 一次 `/me`。可延后到 6.3 中后期实现
 
 ## 当前开发进度
@@ -391,14 +390,14 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   - Task 4a (e10c82e) — footer credits 显示 + 三种 paywall ErrorPanel
   - Task 4b (49b9dc9) — 独立 signin 窗口（440×420）+ SignInForm 抽象 + 15s Resend cooldown
   - Task 4c (本次) — Settings ACCOUNT 补 plan/credits/Manage + idle 文案登录态分支 + 文档同步
-- 6.3 ⬜ Stripe 支付 — **起手 checklist（下次 session 按编号顺序执行）**
-  1. **定价正式拍板** — `## 定价方案` 目前是 6.2 遗留 draft，6.3 第一件事是和用户对齐最终数字（周卡 / 月卡 / credit 包三档）并写入 CLAUDE.md。写入前必须先确认，不要自作主张
-  2. **Stripe 账号准备** — 注册（若未有）→ 切到 test mode → 记录 publishable key + secret key。先在 test mode 跑通 end-to-end，再切 live
-  3. **Stripe Products / Prices 创建** — 按第 1 步拍板的定价，在 Stripe Dashboard 建三个 Product（weekly subscription / monthly subscription / credit pack），每个 Product 对应一个 Price
-  4. **Webhook endpoint 设计** — `POST /webhooks/stripe`：签名校验（`Stripe-Signature` header + webhook secret）；idempotency key 防重复处理；最少处理 `checkout.session.completed` / `customer.subscription.updated` / `customer.subscription.deleted`
-  5. **profiles.stripe_customer_id 字段落地** — 6.2 schema 已预留该字段，6.3 首次 checkout 时创建 Stripe Customer 并回写该字段；后续订阅状态变更通过 customer_id 定位 profile
-  6. **Checkout flow 串通** — Electron 点 Upgrade → `openExternal(/pricing)` → 官网 Stripe Checkout → 成功后用户回到 app → webhook 异步更新 profile
-  7. **设计并实现 credits 刷新机制** — 详见 `## Session 续接指引` 的技术债账本（可延后到 6.3 中后期）
+- 6.3 ⬜ Stripe 支付 — **起手 checklist**
+  1. ✅ **定价正式拍板**（2026-04-24，详见 `## 定价方案`）—— 免费 5 credits + 周卡 $5.99 + 月卡 $12.99 + 30/$4.99 + 100/$9.99，订阅 50/day cap
+  2. ⬜ **Stripe 账号准备** — 注册（若未有）→ 切到 test mode → 记录 publishable key + secret key。先在 test mode 跑通 end-to-end，再切 live
+  3. ⬜ **Stripe Products / Prices 创建** — 4 个 Product（weekly sub / monthly sub / 30-credit pack / 100-credit pack），每个 Product 对应一个 Price
+  4. ⬜ **Webhook endpoint 设计** — `POST /webhooks/stripe`：签名校验（`Stripe-Signature` header + webhook secret）；idempotency key 防重复处理；最少处理 `checkout.session.completed` / `customer.subscription.updated` / `customer.subscription.deleted`
+  5. ⬜ **profiles.stripe_customer_id 字段落地** — 6.2 schema 已预留该字段，6.3 首次 checkout 时创建 Stripe Customer 并回写该字段；后续订阅状态变更通过 customer_id 定位 profile
+  6. ⬜ **Checkout flow 串通** — Electron 点 Upgrade → `openExternal(/pricing)` → 官网 Stripe Checkout → 成功后用户回到 app → webhook 异步更新 profile
+  7. ⬜ **设计并实现 credits 刷新机制** — 详见 `## Session 续接指引` 的技术债账本（可延后到 6.3 中后期）
 - 6.4 ⬜ 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
 **阶段 7 — 打包发布**
@@ -408,14 +407,22 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 ## 定价方案
 
-> ⚠️ **DRAFT** — 数字是 6.2 期间的草案，**Phase 6.3 task 1 必须先和用户对齐才能正式落地**。下次 session 接到 6.3 时不要把这些数字当 final 直接写进 Stripe Products
+2026-04-24 拍板（Phase 6.3 task 1 完成）。
 
-- 免费：新用户 5 次分析
-- 周卡 $5.99 — 7 天无限使用
-- 月卡 $12.99 — 30 天无限使用
-- Credit 包：30 credits $4.99 / 100 credits $12.99 / 300 credits $29.99
-- 1 credit = 1 次截图分析（不管图中几道题）
-- 订阅用户每日上限 50 次分析（防滥用）
+- **免费**：注册一次性 5 credits（不重置，不续；用完必须付费）
+- **周卡** $5.99 / 7 天，up to 50 captures/day
+- **月卡** $12.99 / 30 天，up to 50 captures/day
+- **Credit 包**：
+  - 30 credits / $4.99（单价 $0.166，"小额不承诺"档）
+  - 100 credits / $9.99（单价 $0.100，对 30 包 -40%，对月卡 -23%，"我用得多但不想订阅"档）
+- **1 credit = 1 次截图分析**（不管图中几道题，绝不按题数计费）
+- **订阅每日 50 次上限**（防滥用，UI 文案明示 "up to 50/day"，不写 unlimited 避免误导）
+
+定价心理学要点（决策依据）：
+- 100 包定 $9.99 而非 $12.99 — 后者和月卡同价会让用户决策瘫痪 / 100 包卖不动
+- 删 300 包 — SKU 简化，决策树更清
+- 月卡 $12.99 上线后看转化率，必要时降到 $9.99（破 $10 学生心理线）
+- 5 free 偏紧（vs 10 free 选项）— 用户拍板选 5，trade-off 是更早的转化压力 vs 更高的初期流失风险，看真实数据再调
 
 ## 项目结构
 
