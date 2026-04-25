@@ -293,7 +293,7 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 6.3 进行中 — tasks 1-4 ✅（定价 / Stripe 账号 / Products / webhook endpoint），下一步 **task 5+6 checkout flow**（task 5 webhook 那半已完成，剩 task 6 创建 customer + 创建 checkout session）
+- **当前 phase**：Phase 6.3 进行中 — tasks 1-5 ✅（定价 / Stripe 账号 / Products / webhook endpoint / customer_id writeback 双重兜底），task 6 (checkout flow) Block 2 已完成（后端路由 + web stub 页），下一步 **Block 3+** Electron pricing window + IPC + paywall 替换
 
 - **新 session 开头**：`git status` + `git log --oneline -5` 验证当前状态。本仓库 push 节奏由用户主动控制，AI 不要擅自 push。
 
@@ -305,20 +305,24 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 - **本地 webhook 联调**：`stripe listen --forward-to localhost:3001/webhooks/stripe` 在用户终端常驻；`stripe trigger checkout.session.completed` 等命令可手动触发 fixtures 给后端发事件。后端 dev 服务器需要同时跑（`cd backend && npm run dev`）。
 
-- **task 4 已完成的范围**（看代码再看这段）：
-  - `POST /webhooks/stripe`（`backend/src/routes/stripe-webhook.ts`）：encapsulated raw-body parser、Stripe-Signature 校验、`webhook_events` 表 dedup（PK = event.id）、三个 handler 真业务逻辑
-  - 三个 handler：`checkout.session.completed`（写 stripe_customer_id + credit pack 加 paid_credits_balance；订阅产品交给 subscription.updated 处理）/ `customer.subscription.updated`（status/type/expires_at 同步，**注意 Stripe API 2025+ 把 current_period_end 移到了 subscription item 级别**）/ `customer.subscription.deleted`（status='canceled'，不动 expires_at）
-  - 6 个单元测试覆盖：缺签名 / 坏签名 / pack happy / dedup 重复 / sub.updated / sub.deleted
-  - `env.ts` 收紧 `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` 为 required；4 个 `STRIPE_PRICE_*` 仍 optional（task 6 用到时再收紧）
-  - 新 migration：`backend/supabase/migrations/20260424_webhook_events.sql`（webhook_events 表）—— **用户已手跑 / 待手跑确认**
+- **task 4-5 已完成的范围**：
+  - `POST /webhooks/stripe`（`backend/src/routes/stripe-webhook.ts`）：encapsulated raw-body parser、Stripe-Signature 校验、`webhook_events` 表 dedup（PK = event.id）、三个 handler（`checkout.session.completed` 写 stripe_customer_id + 加 paid_credits_balance；`customer.subscription.updated` 同步 status/type/expires_at — **注意 Stripe API 2025+ 把 `current_period_end` 移到了 subscription item 级别**；`customer.subscription.deleted` set canceled）
+  - 6 个 webhook 单元测试 + migration `backend/supabase/migrations/20260424_webhook_events.sql`（用户已手跑）
+  - **task 5 `stripe_customer_id` writeback**：双重保障 —— webhook handler 在 checkout.session.completed 时 writeback / checkout 路由在 customer 创建时 writeback。任一失败另一边兜底。
 
-- **下次 session 第一步**（task 6 — checkout flow）：
-  1. 决定 checkout session 创建在哪：候选 (a) Electron `auth:openPricing` 直接调后端 `POST /checkout` 拿 URL 再 `shell.openExternal`；(b) snapcue-web 的 `/pricing` 页面挂按钮调后端。两者都需要后端新增 `POST /checkout`。
-  2. 实现 `POST /checkout`（`backend/src/routes/checkout.ts`）：requireAuth、入参 `{ product: 'weekly'|'monthly'|'pack_30'|'pack_100' }`、按 product 选 mode (`subscription` / `payment`) 和 priceId、若 profile 还没 stripe_customer_id 则 `customers.create({ metadata: { user_id } })` 写回 profile、`metadata: { user_id, product }` 注入 session（webhook handler 已经依赖这两个 key）、订阅 mode 同时塞 `subscription_data.metadata.user_id`。
-  3. 收紧 4 个 `STRIPE_PRICE_*` 为 required。
-  4. 设计客户端 credits 刷新：dropdown hidden → visible 时调 `credits:refresh`（最轻方案，无需轮询）。
-  5. 单元测试：checkout 路由 happy path + 缺 product 400 + Stripe SDK mock。
-  6. 端到端联调：Electron 点 Upgrade → 后端创 session → openExternal Stripe Checkout → 用 4242 4242 4242 4242 测试卡付款 → stripe listen 转发 webhook → 后端落库 → 重开 dropdown 看 credits 更新。
+- **task 6 Block 2 已完成的范围**（2026-04-25）：
+  - **后端 `POST /checkout`**（`backend/src/routes/checkout.ts`）：requireAuth、入参 `{ product: 'weekly'|'monthly'|'pack_30'|'pack_100' }`、按 product 选 mode (`subscription` / `payment`) 和 priceId、若 profile 没 stripe_customer_id 则 `stripe.customers.create({ email, metadata: { user_id } }, { idempotencyKey: 'customer-create-${user_id}' })` 写回 profile、`metadata.user_id` + `metadata.product` 注入 session、subscription mode 同时塞 `subscription_data.metadata.user_id`、success/cancel 跳 snapcue-web stub 页
+  - 6 个 checkout 单元测试（401 缺 auth / 400 invalid product / 400 缺 product / pack happy / 订阅 happy + 创 customer / customer 创建失败 500）
+  - `env.ts` 收紧 4 个 `STRIPE_PRICE_*` 为 required（路由真用了，必须 fail-fast）
+  - **snapcue-web** 加 `/checkout-success`（绿 ✓ + "Open SnapCue" + `snapcue://checkout-success` deep link）和 `/checkout-cancel`（灰 × + 同上 + 回 /pricing 链接）两个 stub 页，build 通过
+
+- **下次 session 第一步**（task 6 Block 3+ — Electron 端）：
+  1. **Electron pricing window**（仿 signin window 模式）：`electron/pricing.ts` 新建 BrowserWindow（约 440×400），renderer 复用 React 通过 hash route `#pricing` 区分。展示 4 个产品卡片（weekly/monthly/pack_30/pack_100），点击 → 调后端 `POST /checkout` → `shell.openExternal(session.url)` → 关闭 pricing window
+  2. **新 IPC channels**：`auth:openCheckout` (renderer→main, invoke, args: `{ product }`, return: `void` — main 端调后端拿 URL 再 openExternal) / `auth:closePricing` (renderer→main, send) / 也可直接复用 openCheckout 走单一路径
+  3. **替换现有 `auth:openPricing` 调用**：App.tsx no_credits paywall + settings-view ManageLink 改成开 pricing window 而非 `openExternal('/pricing')`
+  4. **后端 `POST /billing-portal`**（小，建议 Block 3 顺手做）：requireAuth、查 profile.stripe_customer_id、`stripe.billingPortal.sessions.create({ customer, return_url })`、ManageLink 走这个路由让用户管理已有订阅
+  5. **Credits 刷新**：dropdown hidden → visible 时触发 `credits:refresh`（一次 `/me`），同时 main 端注册 `snapcue://checkout-success` deep link handler 也推一次 refresh
+  6. **端到端联调**：Electron 点 Upgrade → pricing window 选产品 → openExternal Stripe Checkout → 用 `4242 4242 4242 4242` 测试卡付款 → success 页面 → 重开 dropdown 看 credits 更新
 
 - **已知技术债账本**：
   - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 未做，建议 6.3 中后期补
@@ -423,9 +427,9 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   2. ✅ **Stripe 账号准备**（2026-04-24）— test mode keys 拿到（用户密码管理器）；secret key 占位符已写入 `backend/.env`
   3. ✅ **Stripe Products / Prices 创建**（2026-04-24）— 4 个 Product 已建在 test mode，price IDs 写入 `backend/.env`：`STRIPE_PRICE_WEEKLY` / `MONTHLY` / `PACK_30` / `PACK_100`。zod schema 在 `lib/env.ts` 添加 optional 校验（含 `price_` / `sk_test|live_` 前缀检测），routes 接入时再收紧成 required
   4. ✅ **Webhook endpoint**（2026-04-25）— `POST /webhooks/stripe` 全套：encapsulated raw body parser、`Stripe-Signature` 校验、`webhook_events` 表 dedup（PK = event.id，"insert-first" idempotency 模型）、三个 handler 真业务逻辑（`checkout.session.completed` 写 stripe_customer_id + credit pack 加 paid_credits_balance；`customer.subscription.updated` 同步 status/type/expires_at；`customer.subscription.deleted` set canceled）。6 个单元测试 + env.ts 收紧 STRIPE_SECRET_KEY/WEBHOOK_SECRET 为 required。本地联调用 Stripe CLI（`stripe listen --forward-to localhost:3001/webhooks/stripe`）。
-  5. ✅ **profiles.stripe_customer_id 写回（webhook 半）**（2026-04-25）—  `checkout.session.completed` handler 已实现 customer_id writeback（用 metadata.user_id 定位 profile）。**checkout 创建 Customer 那半延到 task 6**（要先有 checkout flow 才会触发 customer 创建）。
-  6. ⬜ **Checkout flow 串通** — 后端新增 `POST /checkout`（requireAuth + 接 product → 选 mode/priceId → profile 没 stripe_customer_id 时 customers.create → metadata 注入 user_id/product → 返回 session.url）。Electron 点 Upgrade → 调后端 → openExternal Stripe Checkout → 4242 测试卡付款 → stripe listen 转发 webhook → 落库 → 重开 dropdown 看 credits 更新。同步收紧 4 个 STRIPE_PRICE_* 为 required。
-  7. ⬜ **设计并实现 credits 刷新机制** — 最轻方案：dropdown 从 hidden → visible 时调 `credits:refresh`（webhook 已落库，前端只需重新拉一次 `/me`）。和 task 6 一起做。
+  5. ✅ **profiles.stripe_customer_id 写回**（2026-04-25）— webhook 那半（checkout.session.completed handler）+ checkout 路由那半（customers.create + idempotency key + writeback）双重保障，任一失败另一边兜底。
+  6. 🟡 **Checkout flow** — Block 2 已完成（2026-04-25）：后端 `POST /checkout`（requireAuth + 4 product → priceId/mode + Stripe customer 创建 + writeback + idempotency key + subscription_data.metadata.user_id 注入）+ 6 单元测试 + 4 个 STRIPE_PRICE_* 收紧成 required + snapcue-web 新增 `/checkout-success` 和 `/checkout-cancel` stub 页（含 `snapcue://checkout-*` deep link）。剩下：Electron pricing window + IPC + paywall 替换（详见 ## Session 续接指引）。
+  7. ⬜ **设计并实现 credits 刷新机制** — 最轻方案：dropdown 从 hidden → visible 时调 `credits:refresh`（webhook 已落库，前端只需重新拉一次 `/me`）。和 task 6 剩余 block 一起做。
 - 6.4 ⬜ 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
 **阶段 7 — 打包发布**
@@ -499,6 +503,7 @@ snapcue/
 │   │   │   └── auth.ts    # requireAuth preHandler — 验 JWT + 注入 request.user
 │   │   └── routes/
 │   │       ├── analyze.ts        # POST /analyze（credit gate + GPT-5 mini + 失败自动 refund）
+│   │       ├── checkout.ts       # POST /checkout（requireAuth + product → priceId/mode + Stripe customer + session url）
 │   │       ├── me.ts             # GET /me（user + CreditsMeta，dropdown 打开时拉一次）
 │   │       ├── stripe-webhook.ts # POST /webhooks/stripe（raw body + sig 校验 + dedup + 三个 handler）
 │   │       └── health.ts         # GET /health

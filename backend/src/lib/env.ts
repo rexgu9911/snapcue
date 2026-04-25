@@ -24,9 +24,9 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   NODE_ENV: z.string().optional(),
 
-  // Stripe (Phase 6.3). SECRET_KEY + WEBHOOK_SECRET are required as of task 4
-  // (webhook handler depends on both). The four PRICE_* vars stay optional
-  // until task 6 wires up checkout — tightened then.
+  // Stripe (Phase 6.3). All required as of task 6 — webhook handler reads
+  // SECRET_KEY/WEBHOOK_SECRET, checkout route reads SECRET_KEY + 4 PRICE_*
+  // for price-id selection.
   STRIPE_SECRET_KEY: z
     .string()
     .min(1)
@@ -41,10 +41,10 @@ const schema = z.object({
       (v) => v.startsWith('whsec_'),
       'STRIPE_WEBHOOK_SECRET must start with whsec_',
     ),
-  STRIPE_PRICE_WEEKLY: z.string().startsWith('price_').optional(),
-  STRIPE_PRICE_MONTHLY: z.string().startsWith('price_').optional(),
-  STRIPE_PRICE_PACK_30: z.string().startsWith('price_').optional(),
-  STRIPE_PRICE_PACK_100: z.string().startsWith('price_').optional(),
+  STRIPE_PRICE_WEEKLY: z.string().startsWith('price_'),
+  STRIPE_PRICE_MONTHLY: z.string().startsWith('price_'),
+  STRIPE_PRICE_PACK_30: z.string().startsWith('price_'),
+  STRIPE_PRICE_PACK_100: z.string().startsWith('price_'),
 })
 
 const parsed = schema.safeParse(process.env)

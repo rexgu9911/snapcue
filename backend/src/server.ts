@@ -4,6 +4,7 @@ import { env } from './lib/env.js'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { analyzeRoute } from './routes/analyze.js'
+import { checkoutRoute } from './routes/checkout.js'
 import { healthRoute } from './routes/health.js'
 import { meRoute } from './routes/me.js'
 import { stripeWebhookRoute } from './routes/stripe-webhook.js'
@@ -37,6 +38,7 @@ export async function buildApp() {
   registerAuth(app)
 
   app.register(analyzeRoute)
+  app.register(checkoutRoute)
   app.register(meRoute)
   app.register(healthRoute)
   app.register(stripeWebhookRoute)
