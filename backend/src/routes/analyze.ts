@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import OpenAI from 'openai'
+import { env } from '../lib/env.js'
 import {
   checkAndReserveCredit,
   finalizeUsage,
@@ -54,12 +55,7 @@ interface AnswerItem {
 type AnalyzeMeta = CreditsMeta & { source: CreditSource }
 
 export const analyzeRoute: FastifyPluginAsync = async (app) => {
-  const apiKey = process.env['OPENAI_API_KEY']
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not set')
-  }
-
-  const client = new OpenAI({ apiKey })
+  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY })
 
   app.post<{ Body: AnalyzeBody }>(
     '/analyze',

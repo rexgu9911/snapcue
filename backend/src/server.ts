@@ -1,4 +1,6 @@
-import 'dotenv/config'
+// env import MUST come first — it loads dotenv and validates all vars before
+// any other module reaches for them. Fail-fast on misconfiguration.
+import { env } from './lib/env.js'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { analyzeRoute } from './routes/analyze.js'
@@ -18,7 +20,7 @@ export async function buildApp() {
 
   // Anti-abuse API key (orthogonal to user auth). Skip when SNAPCUE_API_KEY
   // is unset for local dev parity.
-  const snapcueApiKey = process.env['SNAPCUE_API_KEY']
+  const snapcueApiKey = env.SNAPCUE_API_KEY
   if (snapcueApiKey) {
     app.addHook('onRequest', async (request, reply) => {
       if (request.method === 'GET' && request.url === '/health') return
@@ -40,18 +42,17 @@ export async function buildApp() {
 
 async function start() {
   const app = await buildApp()
-  const port = Number(process.env['PORT'] ?? 3001)
 
   try {
-    await app.listen({ port, host: '0.0.0.0' })
-    console.log(`SnapCue backend listening on :${port}`)
+    await app.listen({ port: env.PORT, host: '0.0.0.0' })
+    console.log(`SnapCue backend listening on :${env.PORT}`)
   } catch (err) {
     app.log.error(err)
     process.exit(1)
   }
 }
 
-const isTest = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] !== undefined
+const isTest = env.NODE_ENV === 'test' || process.env['VITEST'] !== undefined
 if (!isTest) {
   start()
 }

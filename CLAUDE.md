@@ -81,20 +81,16 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - Sign-in 独立窗口：Paywall 触发 / Settings signed-out 统一走 440×420 modal（electron/signin.ts）承载 SignInForm，全局单一路径（`auth:openSignin` 无参数分叉）。独立窗口相对 dropdown 内嵌的好处：(a) 尺寸 / 视觉可独立设计，不受 200px 宽度约束；(b) 用户去邮箱点 magic link 回来可 cmd+tab 切回窗口；(c) deep link 回调统一关闭窗口 + 刷新 footer
 - 业务失败响应契约：后端 402 / 429 等"用户能通过操作解决"的失败响应 body 必须带 CreditsMeta。前端依赖 meta 渲染付费引导面板（no_credits → Upgrade，daily_limit → Daily limit reached），零二次请求。Electron main 把 meta 转存内存并推 credits:update，footer 与 Settings 自动同步
 
-## PR 2 第一次尝试（回退）
+## Backend env 配置约定
 
-第一次尝试实现 credit system，在配置环节遇到多处阻塞：
+PR 2 第一次尝试 credit system 时配置环节翻车（变量命名不一致、Supabase 凭证缺、dev/prod 不对称、JWT 验证卡住）后，定下以下约定：
 
-- backend/.env 变量命名不一致（SNAPCUE\_ 前缀 vs 无前缀）
-- backend/.env 缺 Supabase 凭证
-- dev 模式下 API key 配置不对称
-- Supabase JWT 验证卡住（未完全定位）
+- ✅ **命名约定**：第三方原生名用其原生形式（`OPENAI_API_KEY` / `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / 未来 `STRIPE_*`），SnapCue 自有变量加 `SNAPCUE_` 前缀（如 `SNAPCUE_API_KEY`）。前端 Vite 全部 `SNAPCUE_` 前缀（envPrefix 过滤要求）
+- ✅ **zod schema 校验**：`backend/src/lib/env.ts` 启动时校验全部必需变量，包含 anon-key 误用检测（`sb_publishable_` 前缀直接 reject）。任何模块要读 env 必须 import `env` object，禁止裸 `process.env['X']`
+- ✅ **fail-fast**：`server.ts` 第一行 import env.ts，缺值或格式错时启动直接 throw，错误信息聚合在一处
+- ⬜ **dev / prod 配置差异文档**：还没补，6.3 拍板前不急
 
-最终回退所有代码，计划在新 session 重新设计实现路径：
-
-- 更明确的 env 变量命名约定
-- 环境变量 schema 在代码里用 zod 校验
-- dev 模式和 prod 模式的配置差异明确文档化
+JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROLE_KEY` 写成了 anon/publishable key，service_role 才有验证 JWT 的权限。zod schema 的 anon-key 检测从此防止此类回归
 
 ## Onboarding 流程
 
@@ -412,6 +408,8 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 
 ## 定价方案
 
+> ⚠️ **DRAFT** — 数字是 6.2 期间的草案，**Phase 6.3 task 1 必须先和用户对齐才能正式落地**。下次 session 接到 6.3 时不要把这些数字当 final 直接写进 Stripe Products
+
 - 免费：新用户 5 次分析
 - 周卡 $5.99 — 7 天无限使用
 - 月卡 $12.99 — 30 天无限使用
@@ -456,11 +454,21 @@ snapcue/
 │       ├── signin-view.tsx      # 独立 sign-in 窗口入口（hash #signin，承载 SignInForm）
 │       └── onboarding-view.tsx  # Onboarding 4 页（Welcome → Shortcuts → Permission → SignIn）
 ├── backend/               # SnapCue API 服务端
-│   └── src/
-│       ├── server.ts      # Fastify app 入口（bodyLimit 10MB）
-│       └── routes/
-│           ├── analyze.ts # POST /analyze（GPT-5 mini，7 种题型，max_completion_tokens 4096）
-│           └── health.ts  # GET /health
+│   ├── src/
+│   │   ├── server.ts      # Fastify 入口（bodyLimit 10MB），第一行 import env.ts fail-fast
+│   │   ├── lib/
+│   │   │   ├── env.ts     # zod env schema — 启动校验所有后端环境变量，含 anon-key 误用检测
+│   │   │   ├── supabase.ts # supabaseAdmin client（service_role，绕 RLS）
+│   │   │   └── credits.ts # reserve_credit / refund_credit / getCreditsMeta RPC 封装
+│   │   ├── middleware/
+│   │   │   └── auth.ts    # requireAuth preHandler — 验 JWT + 注入 request.user
+│   │   └── routes/
+│   │       ├── analyze.ts # POST /analyze（credit gate + GPT-5 mini + 失败自动 refund）
+│   │       ├── me.ts      # GET /me（user + CreditsMeta，dropdown 打开时拉一次）
+│   │       └── health.ts  # GET /health
+│   └── supabase/
+│       └── migrations/
+│           └── 20260423_credits.sql  # profiles + usage_logs + reserve/refund_credit RPC + 新用户 trigger
 ├── build/                 # App icon
 │   ├── icon.png           # 1024×1024 源图（ghost logo + 白底）
 │   └── icon.icns          # macOS icon（由 icon.png 生成）
