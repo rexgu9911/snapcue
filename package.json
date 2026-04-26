@@ -7,7 +7,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack": "electron-vite build && electron-builder --mac --config",
+    "pack": "electron-vite build && electron-builder --mac --config && mkdir -p dist && cp /tmp/snapcue-dist/SnapCue-*.dmg dist/",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx && prettier --check .",
@@ -42,6 +42,9 @@
   "build": {
     "appId": "com.snapcue.app",
     "productName": "SnapCue",
+    "directories": {
+      "output": "/tmp/snapcue-dist"
+    },
     "files": [
       "out/**/*",
       "resources/**/*"
@@ -61,6 +64,7 @@
     "extraMetadata": {
       "main": "out/main/index.js"
     },
+    "afterSign": "scripts/notarize.js",
     "mac": {
       "target": "dmg",
       "category": "public.app-category.education",
@@ -69,7 +73,7 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": true
+      "notarize": false
     },
     "dmg": {
       "window": {
