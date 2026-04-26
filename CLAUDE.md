@@ -294,41 +294,34 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 7.2 **snapcue.io 域名切换进行中（DNS 没全好，代码还没改）**。Phase 7.1（代码签名 + 公证）已 ✅ 提交 `265c399`，签名 .dmg 端到端验证通过。
+- **当前状态**：**v0.1.0 SHIPPED 🚀**（2026-04-26）。GitHub Release 公开：https://github.com/rexgu9911/snapcue/releases/tag/v0.1.0。`.dmg` 双层签名 + 公证（.app + DMG 都 stapled），任何用户下载双击零警告。snapcue.io 域名 + Resend Custom SMTP（mail.snapcue.io）+ 完整 happy path 端到端验证全部通过。
 
-- **Phase 7.2 进度细节**（接力时直接从这里继续）：
-  - ✅ 用户在 Vercel snapcue-web 项目 Settings → Domains 加了 `snapcue.io` + `www.snapcue.io`
-  - ✅ Vercel 给的 DNS records：apex A → `216.198.79.1`，www CNAME → `8949479573c3beae.vercel-dns-017.com`
-  - ✅ 用户在域名 DNS provider 加了 records，但 **`www.snapcue.io` 通了，`snapcue.io` (apex) 还没通** —— 上次卡在排查是 Cloudflare proxy 拦截 / Name 字段格式（@ vs `snapcue.io` vs 留空）/ 旧 A record 未删 / DNS 还没传播这几个可能
-  - ⬜ 用户当前正在排查 apex DNS。下一步先 `dig snapcue.io A +short` 看 DNS provider 真实返什么 IP，确认是 `216.198.79.1`
-  - ⬜ Vercel Domains 页面 snapcue.io 那一行需要变绿 ✓ + "Valid Configuration" + SSL active
-  - ⬜ Supabase Dashboard → Authentication → URL Configuration → Redirect URLs 里加 `https://snapcue.io/auth/callback`（必须，不然新域名 magic link 回调会被 Supabase 拒）
+- **Phase 7.2 / 7.4 已完成的范围**（2026-04-26）：
+  - ✅ snapcue.io 域名切换（apex 设 primary，www 反向 redirect）：commit `6f962f6`，7 处 hardcoded URL 全改完（backend CORS / checkout / billing-portal / 2 个测试 / electron auth / .env.production）
+  - ✅ Pack 配置加固（commit `ed9202f`）：`directories.output` → `/tmp/snapcue-dist` 绕开 Documents 文件夹的 `com.apple.macl` xattr（Sequoia 15.4+ codesign 拒签）；notarize 改 `afterSign` hook + Keychain profile `snapcue-notarize`，不再依赖任何 env var
+  - ✅ DMG 公证 + staple（commit `3c8640c`）：`afterAllArtifactBuild` hook 给 DMG 容器签名 + notarize + staple，避免双击 DMG 时的 "Apple cannot verify..." 警告
+  - ✅ Permission UX 修复（commit `acc4cf2`）：`permission:openSettings` 调用 `desktopCapturer.getSources()` 触发 TCC 注册（确保 SnapCue 出现在 System Settings 的 Screen Recording 列表里）；UI 把无效的 "Recheck Permission" 按钮换成 "Restart SnapCue" + 加 `app:relaunch` IPC（macOS Screen Recording 权限 cache 在 process 级别，必须重启 app 才生效）
+  - ✅ Resend Custom SMTP（mail.snapcue.io）：DNS records 在 NameSilo（DKIM / SPF / MX）、API key 在 Supabase Authentication → SMTP Settings；magic link 邮件从 `noreply@mail.snapcue.io` 发出，绕开 Supabase 内置 SMTP 的 4/hour 硬限速
+  - ✅ snapcue-web `/download` 页：Server Component 通过 GitHub API 拉 latest release，Auto-update on new release（缓存 1h via Next.js revalidate）。Navbar 加 Download 链接
+  - ✅ `.env.example` 三件套（snapcue / backend / snapcue-web）
 
-- **DNS 全好后要改的 7 处 hardcoded `snapcue-web.vercel.app` URL**（已 grep 确认全在 snapcue 仓库，snapcue-web 仓库 0 处）：
-  | 文件 | 行 | 改成 |
-  | --- | --- | --- |
-  | `backend/src/server.ts` | CORS allowlist（保留 vercel.app，给 preview deploy）| 加 `'https://snapcue.io'` 进 origin 数组 |
-  | `backend/src/routes/checkout.ts` | SUCCESS_URL / CANCEL_URL | 替换成 `snapcue.io` |
-  | `backend/src/routes/billing-portal.ts` | RETURN_URL | 替换成 `snapcue.io` |
-  | `backend/src/routes/cors.test.ts` | 2 处 test 数据 | 加 `snapcue.io` 测试 case |
-  | `backend/src/routes/billing-portal.test.ts` | `expect.stringContaining` | 改成 `snapcue.io` |
-  | `electron/auth.ts` | `MAGIC_LINK_REDIRECT` | 替换成 `snapcue.io` |
-  | `snapcue/.env.production`（gitignored）| `SNAPCUE_WEB_URL` | `https://snapcue.io` |
+- **Phase 7.3 - Live mode 切换 checklist**（真收钱时再做）：
+  1. Stripe Dashboard 切 Live mode → Catalog 重新建 4 个 Product/Price → 拿 live mode 的 `STRIPE_PRICE_*`
+  2. Account → API keys 拿 `sk_live_...` 替换 `STRIPE_SECRET_KEY`
+  3. Live mode 单独配 webhook endpoint（test mode endpoint 仅对 test 流量生效）→ 拿新的 `whsec_live_...`
+  4. Railway env 替换上述 5 个值
+  5. snapcue-web Vercel env 不动（NEXT_PUBLIC_SNAPCUE_API_URL 仍指 Railway prod）
+  6. 用 4242 卡之外的真卡走一次端到端验证
 
-- **改完代码后**：
-  1. backend/snapcue 全 npm test + tsc 干净
-  2. push origin main → Railway 自动 redeploy 用新 SUCCESS_URL / RETURN_URL
-  3. 本地 `npm run pack` 重出签名 .dmg（Apple 凭证 + Keychain 证书都已经在用户 Mac 上，不用重新配）
-  4. 全新机器装新 .dmg 重跑 happy path 验证 snapcue.io 链路（subscribe → success 跳 snapcue.io 不是 vercel.app，magic link 邮件里的链接也是 snapcue.io）
-
-- **Phase 7.2 之后的剩余 launch 工作**：
-  - **GitHub Releases 分发**：`gh release create v0.1.0 dist/SnapCue-0.1.0-arm64.dmg --notes "First beta"`，snapcue-web 加 `/download` 页面挂这个 release URL
-  - **Phase 7.3 - Live mode 切换**（真收钱时）：Stripe Dashboard live mode 单独配 webhook + 重新拿 live `STRIPE_SECRET_KEY` / `STRIPE_PRICE_*` / `STRIPE_WEBHOOK_SECRET` → Railway env 全替换 live 值（test 流量不再到生产，仅 dev 用）
-  - **Phase 7.4 - 收尾**：lint / test / README / `.env.example`（snapcue + backend + snapcue-web 都需要补一个 example 文件方便新机器配置）/ 可选 `electron-updater` 自动升级机制（GitHub Releases 模式）
+- **未来增强**（不阻塞 launch，按需做）：
+  - **`electron-updater`** 自动升级机制（GitHub Releases 模式）：现在用户装 0.1.0 → 0.1.1 发版后没法自动升级，需手动重下 .dmg
+  - **DMARC 记录**：当时只加了 DKIM/SPF/MX 三条，DMARC（`_dmarc.mail` TXT `v=DMARC1; p=none;`）建议补上，对长期 deliverability 有帮助
+  - **homepage CTA 切到 Download**：snapcue-web 的 `BottomCTA` 和 `FooterCTA` 当前还指向 `#waitlist` 锚点（pre-launch 留的），可以改成 `/download` 走真实下载
 
 - **关于打包凭证 / Apple 配置**（不进 git，新机器要重做）：
-  - **Keychain**：用户当前 Mac 的 Keychain Access 里安装了 "Developer ID Application: ..." 证书。换台机器打包要重新走 CSR → 上传 Apple Developer → 下载 .cer → 双击装进新机器 Keychain
-  - **shell env vars**：用户 shell 里 export 了 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID`（建议写进 `~/.zshrc` 永久生效）。新机器要重新 export，APPLE_APP_SPECIFIC_PASSWORD 要从 https://appleid.apple.com 重新生成（旧的也能继续用，看用户）
+  - **Keychain - Developer ID 证书**：用户当前 Mac 的 Keychain Access 里安装了 "Developer ID Application: Yangxiuye Gu (2658LDPHG8)" 证书。换台机器打包要重新走 CSR → 上传 Apple Developer → 下载 .cer → 双击装进新机器 Keychain
+  - **Keychain - notarytool profile**：notarize 通过 `xcrun notarytool store-credentials snapcue-notarize` 存进 Keychain（已设好），由 `scripts/notarize.js` + `scripts/notarize-dmg.js` 两个 hook 引用。新机器要重跑一次 store-credentials 命令，提示输入 Apple ID + Team ID `2658LDPHG8` + app-specific password
+  - **不再需要 shell env vars**：之前的 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID` env var 路径已废弃，pack 全程通过 Keychain profile 认证。任何 shell 都能跑 `npm run pack` 不会再因为缺 env var 静默跳过 notarize
 
 - **新 session 开头**：`git status` + `git log --oneline -5` 验证当前状态。本仓库 push 节奏由用户主动控制，AI 不要擅自 push。
 
@@ -370,17 +363,18 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   - **DX 改进**：`backend/package.json` 加 `npm run stripe:listen` 一键起 forwarder，永久护栏 `--forward-to` flag 不会忘
   - **测试覆盖**：38 个 backend tests 全 pass（5 新 billing-portal、+ created 事件 case、+ cancel_at_period_end 写入 case、+ /billing-portal 必带 x-api-key 反向 pin、existing analyze.test.ts 同步加 `cancel_at_period_end: false` 字段）
 
-- **下次 session 第一步**（Phase 7 — 打包自测 + 签名）：
-  1. **打包自测**（最高优先级，6.2/6.3 攒下的技术债）：`npm run pack` → 把生成的 `dist/SnapCue-*.dmg` 拖到 Applications 安装 → 用全新 user data 跑端到端 happy path：
-     - 首次启动看到 onboarding 4 页 → magic link 登录 → 截图分析 → Settings → Get more credits → 浏览器 /pricing → Stripe Checkout 4242 卡付款 → success 页 → "Open SnapCue" 按钮（**deep link 关键测试**：打包模式下 `snapcue://checkout-success` 需要正确触发 app handleDeepLink，dev 模式跟打包路径不一致是已知坑）→ dropdown 应自动刷新 credits → Settings 看 Manage subscription → 跳 Stripe portal → cancel → DB 同步 → UI 显示 Cancels
-  2. **deep link 调试**：如果打包后 deep link 不工作，需要 `lsregister` 手动注册 `com.snapcue.app` 协议，或改 `electron/main.ts` 的 protocol handler 注册逻辑
-  3. **代码签名 + 公证**：用户需要 Apple Developer 账号（$99/year）。`electron-builder` 配 `mac.identity` 设为 cert name 启用签名，`mac.notarize` 配 Apple ID + app password 启用公证。参考 electron-builder 官方文档
-  4. **Live mode 切换 checklist**：backend `.env` STRIPE_SECRET_KEY / STRIPE_PRICE_* 全换成 live mode 值；Stripe Dashboard live mode 单独配 webhook endpoint（test mode endpoint 仅对 test 流量生效）；snapcue-web Vercel env 不动；snapcue Electron `.env.production` 加 `SNAPCUE_WEB_URL=https://snapcue-web.vercel.app`
+- **下次 session 可能的工作**（按优先级；都不阻塞当前 launch）：
+  1. **观察 v0.1.0 早期用户反馈** —— bug / UX 痛点 / 功能要求；改完发 0.1.1 走同样的 `npm run pack` + `gh release create` 流程
+  2. **Phase 7.3 - Live mode 切换**（详见上面 checklist）—— 真要收钱时做
+  3. **`electron-updater` 自动升级**（GitHub Releases 模式）—— 用户体验大提升，没这个每次发版要让用户重新下 .dmg
+  4. **DMARC 补一条**：NameSilo 加 `_dmarc.mail` TXT `v=DMARC1; p=none;`
+  5. **homepage CTA 改向 `/download`**：snapcue-web 的 `BottomCTA.tsx` / `FooterCTA.tsx` 当前还指 `#waitlist` 锚点
 
-- **已知技术债账本**：
-  - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 / 6.3 都没做，**强烈建议 task 7 后期补**。重点验证：deep link `snapcue://checkout-success` 能正确把打包后的 app 拉回前台（`lsregister` 注册了 `com.snapcue.app`，dev mode 跟打包模式协议绑定路径不一样，可能踩坑）
-  - 上 live mode 之前要把 `.env` 的 test 值替换为 live 值（Stripe / Supabase 同一规则）。注意 webhook endpoint 在 Stripe Dashboard live mode 要单独配（test mode 的 endpoint 仅对 test 流量生效）。snapcue-web 上 live：Vercel `NEXT_PUBLIC_SNAPCUE_API_URL` 不变（仍指 Railway prod），但 STRIPE_PRICE_* 在 backend `.env` 里换成 live mode price IDs；snapcue Electron `.env.production` 加 `SNAPCUE_WEB_URL=https://snapcue-web.vercel.app`
-  - Stripe webhook idempotency 选用 "insert webhook_events 行 → 跑 handler" 模型；handler 抛异常后行已落库，dashboard "Resend webhook" 会被 dedup 短路。恢复手段：手动删 webhook_events 行 + dashboard 重发。详见 stripe-webhook.ts 顶部注释。
+- **已知技术债账本 / 容易踩坑**：
+  - **macOS Documents 路径 codesign 拒签**（已绕开）：Sequoia 15.4+ 给 Documents 文件夹下文件实时打 `com.apple.macl` xattr，这种 xattr 让 codesign 报 "resource fork, Finder information, or similar detritus not allowed"。当前 fix 是把 `directories.output` 改 `/tmp/snapcue-dist`。新开发者如果搬出 Documents 文件夹了可以删除这个 override
+  - **macOS Screen Recording 权限 cache**（已 fix UX）：`systemPreferences.getMediaAccessStatus('screen')` 在 process 启动时缓存，授权后必须重启 app 才生效。当前 fix 是 PermissionGuide 提供 "Restart SnapCue" 按钮（调 `app:relaunch` IPC）。注意未来如果加 dropdown 内的"recheck"逻辑，要避免误导用户
+  - **Apple notary 排队偶发 1+ 小时**：见 7.2 Apr 25-26 经验，第一次提交 cert 还没传播 + 周末高峰可以等 2.5 小时。不是配置问题，等就完了。`xcrun notarytool history --keychain-profile snapcue-notarize` 看真实状态
+  - **Stripe webhook idempotency**：选用 "insert webhook_events 行 → 跑 handler" 模型；handler 抛异常后行已落库，dashboard "Resend webhook" 会被 dedup 短路。恢复手段：手动删 webhook_events 行 + dashboard 重发。详见 stripe-webhook.ts 顶部注释
 
 ## 当前开发进度
 
@@ -487,10 +481,10 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 **阶段 7 — 打包发布**
 
-- 7.1 ✅ **代码签名 + Apple 公证**（2026-04-25）：Developer ID Application 证书装 Keychain；`package.json build.mac` 配 `hardenedRuntime: true / gatekeeperAssess: false / entitlements: build/entitlements.mac.plist / entitlementsInherit / notarize: true`，移除 `identity: null` 让 electron-builder 自动 detect Keychain 证书；新建 `build/entitlements.mac.plist` 三条 hardened-runtime 例外（V8 JIT / unsigned executable memory / disable library validation —— sharp + @img native 模块要求）；`npm run pack` 跑通签名 + 上传 Apple notarytool 公证 + staple ticket，输出可直接分发的 `.dmg`。env vars `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID` 设在 shell（不进 git）。真机端到端验证通过，无 Gatekeeper 弹窗
-- 7.2 ⬜ snapcue.io 域名切换（用户已购）+ GitHub Releases 分发设置
+- 7.1 ✅ **代码签名 + Apple 公证**（2026-04-25）：Developer ID Application 证书装 Keychain；`package.json build.mac` 配 `hardenedRuntime: true / gatekeeperAssess: false / entitlements: build/entitlements.mac.plist / entitlementsInherit / notarize: true`，移除 `identity: null` 让 electron-builder 自动 detect Keychain 证书；新建 `build/entitlements.mac.plist` 三条 hardened-runtime 例外（V8 JIT / unsigned executable memory / disable library validation —— sharp + @img native 模块要求）；`npm run pack` 跑通签名 + 上传 Apple notarytool 公证 + staple ticket，输出可直接分发的 `.dmg`
+- 7.2 ✅ **snapcue.io 域名切换 + GitHub Releases v0.1.0**（2026-04-26）：apex 设 primary，7 处 hardcoded URL 全切 `snapcue.io`（commit `6f962f6`）；GitHub Release v0.1.0 发布签名+公证 .dmg
 - 7.3 ⬜ Live mode 切换（test → real money）
-- 7.4 ⬜ 最终检查（lint、test、README、.env.example、auto-update 机制可选）
+- 7.4 ✅ **最终打磨**（2026-04-26）：Pack 配置加固到 Sequoia 15.4+ 兼容（`directories.output` → `/tmp` 绕开 macl xattr，commit `ed9202f`）；DMG 双层公证 + staple（commit `3c8640c`）；Permission UX 修复 TCC pre-register + Restart 按钮（commit `acc4cf2`）；Resend Custom SMTP `noreply@mail.snapcue.io` 替代 Supabase 内置 4/hour 限速 SMTP；snapcue-web `/download` 页 + Navbar 链接；3 份 `.env.example`。剩余可选：`electron-updater` 自动升级机制、homepage CTA 改向 `/download`
 
 ## 定价方案
 
