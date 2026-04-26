@@ -294,7 +294,41 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 7.1 (代码签名 + Apple 公证) **完成 ✅** —— 签名+公证版 .dmg 端到端验证通过：全新机器装 SnapCue.app 双击启动**无 Gatekeeper 弹窗** + 截图分析 + Stripe 付款 + `snapcue://checkout-success` deep link 拉回 app + 自动刷新 credits + Manage subscription + Stripe billing portal + cancel 全链路 happy path 跑通。下一步 **snapcue.io 域名切换**（用户已购）+ **GitHub Releases 分发设置**，然后 **live mode 切换** 准备真实发布
+- **当前 phase**：Phase 7.2 **snapcue.io 域名切换进行中（DNS 没全好，代码还没改）**。Phase 7.1（代码签名 + 公证）已 ✅ 提交 `265c399`，签名 .dmg 端到端验证通过。
+
+- **Phase 7.2 进度细节**（接力时直接从这里继续）：
+  - ✅ 用户在 Vercel snapcue-web 项目 Settings → Domains 加了 `snapcue.io` + `www.snapcue.io`
+  - ✅ Vercel 给的 DNS records：apex A → `216.198.79.1`，www CNAME → `8949479573c3beae.vercel-dns-017.com`
+  - ✅ 用户在域名 DNS provider 加了 records，但 **`www.snapcue.io` 通了，`snapcue.io` (apex) 还没通** —— 上次卡在排查是 Cloudflare proxy 拦截 / Name 字段格式（@ vs `snapcue.io` vs 留空）/ 旧 A record 未删 / DNS 还没传播这几个可能
+  - ⬜ 用户当前正在排查 apex DNS。下一步先 `dig snapcue.io A +short` 看 DNS provider 真实返什么 IP，确认是 `216.198.79.1`
+  - ⬜ Vercel Domains 页面 snapcue.io 那一行需要变绿 ✓ + "Valid Configuration" + SSL active
+  - ⬜ Supabase Dashboard → Authentication → URL Configuration → Redirect URLs 里加 `https://snapcue.io/auth/callback`（必须，不然新域名 magic link 回调会被 Supabase 拒）
+
+- **DNS 全好后要改的 7 处 hardcoded `snapcue-web.vercel.app` URL**（已 grep 确认全在 snapcue 仓库，snapcue-web 仓库 0 处）：
+  | 文件 | 行 | 改成 |
+  | --- | --- | --- |
+  | `backend/src/server.ts` | CORS allowlist（保留 vercel.app，给 preview deploy）| 加 `'https://snapcue.io'` 进 origin 数组 |
+  | `backend/src/routes/checkout.ts` | SUCCESS_URL / CANCEL_URL | 替换成 `snapcue.io` |
+  | `backend/src/routes/billing-portal.ts` | RETURN_URL | 替换成 `snapcue.io` |
+  | `backend/src/routes/cors.test.ts` | 2 处 test 数据 | 加 `snapcue.io` 测试 case |
+  | `backend/src/routes/billing-portal.test.ts` | `expect.stringContaining` | 改成 `snapcue.io` |
+  | `electron/auth.ts` | `MAGIC_LINK_REDIRECT` | 替换成 `snapcue.io` |
+  | `snapcue/.env.production`（gitignored）| `SNAPCUE_WEB_URL` | `https://snapcue.io` |
+
+- **改完代码后**：
+  1. backend/snapcue 全 npm test + tsc 干净
+  2. push origin main → Railway 自动 redeploy 用新 SUCCESS_URL / RETURN_URL
+  3. 本地 `npm run pack` 重出签名 .dmg（Apple 凭证 + Keychain 证书都已经在用户 Mac 上，不用重新配）
+  4. 全新机器装新 .dmg 重跑 happy path 验证 snapcue.io 链路（subscribe → success 跳 snapcue.io 不是 vercel.app，magic link 邮件里的链接也是 snapcue.io）
+
+- **Phase 7.2 之后的剩余 launch 工作**：
+  - **GitHub Releases 分发**：`gh release create v0.1.0 dist/SnapCue-0.1.0-arm64.dmg --notes "First beta"`，snapcue-web 加 `/download` 页面挂这个 release URL
+  - **Phase 7.3 - Live mode 切换**（真收钱时）：Stripe Dashboard live mode 单独配 webhook + 重新拿 live `STRIPE_SECRET_KEY` / `STRIPE_PRICE_*` / `STRIPE_WEBHOOK_SECRET` → Railway env 全替换 live 值（test 流量不再到生产，仅 dev 用）
+  - **Phase 7.4 - 收尾**：lint / test / README / `.env.example`（snapcue + backend + snapcue-web 都需要补一个 example 文件方便新机器配置）/ 可选 `electron-updater` 自动升级机制（GitHub Releases 模式）
+
+- **关于打包凭证 / Apple 配置**（不进 git，新机器要重做）：
+  - **Keychain**：用户当前 Mac 的 Keychain Access 里安装了 "Developer ID Application: ..." 证书。换台机器打包要重新走 CSR → 上传 Apple Developer → 下载 .cer → 双击装进新机器 Keychain
+  - **shell env vars**：用户 shell 里 export 了 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID`（建议写进 `~/.zshrc` 永久生效）。新机器要重新 export，APPLE_APP_SPECIFIC_PASSWORD 要从 https://appleid.apple.com 重新生成（旧的也能继续用，看用户）
 
 - **新 session 开头**：`git status` + `git log --oneline -5` 验证当前状态。本仓库 push 节奏由用户主动控制，AI 不要擅自 push。
 
