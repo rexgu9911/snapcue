@@ -33,8 +33,20 @@ async function handleDeepLink(raw: string): Promise<void> {
   }
 
   if (parsed.protocol !== 'snapcue:') return
-  if (parsed.hostname !== 'auth-callback') return
 
+  switch (parsed.hostname) {
+    case 'auth-callback':
+      await handleAuthCallback(parsed)
+      return
+    case 'checkout-success':
+      await handleCheckoutSuccess()
+      return
+    default:
+      return
+  }
+}
+
+async function handleAuthCallback(parsed: URL): Promise<void> {
   const access_token = parsed.searchParams.get('access_token')
   const refresh_token = parsed.searchParams.get('refresh_token')
   if (!access_token || !refresh_token) return
@@ -53,6 +65,18 @@ async function handleDeepLink(raw: string): Promise<void> {
 
   // Pull credits meta immediately after login so the footer / settings
   // render with a real balance without waiting for the first capture.
+  void refreshCreditsMeta()
+}
+
+async function handleCheckoutSuccess(): Promise<void> {
+  // The Stripe webhook is what actually credits the user (writes
+  // paid_credits_balance / subscription_status to profiles). By the time
+  // the user clicks "Open SnapCue" on the success page, the webhook may
+  // have already fired (Stripe → Railway, server-to-server, fast) — but
+  // we don't *know* that, and racing it is fine: refreshCreditsMeta()
+  // pulls /me which reflects whatever state Supabase has right now. If
+  // the webhook hasn't landed yet, the user re-opens the dropdown a few
+  // seconds later and setOnDropdownShow re-pulls.
   void refreshCreditsMeta()
 }
 

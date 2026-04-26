@@ -25,7 +25,6 @@ import { clearStoredSession, getCurrentUser, getStoredSession, signInWithMagicLi
 import { createSigninWindow, closeSigninWindow } from './signin'
 
 const API_TIMEOUT_MS = 30_000
-const PRICING_URL = 'https://snapcue-web.vercel.app/pricing'
 
 // ── Backend response shapes ─────────────────────────────────────────────────
 
@@ -135,6 +134,29 @@ async function fetchCreditsMeta(): Promise<CreditsMeta | null> {
   }
 }
 
+// ── Pricing entrypoint ──────────────────────────────────────────────────────
+
+/**
+ * Open the web pricing page in the user's default browser. When signed in,
+ * forwards the Supabase session via the URL fragment so the web page can call
+ * `supabase.auth.setSession()` and act as the same user — avoiding a second
+ * sign-in just to upgrade. Fragment (not query string) is the standard pattern
+ * Supabase itself uses for magic-link callbacks: it never reaches the server.
+ */
+async function openWebPricing(): Promise<void> {
+  const pricingUrl = `${config.webBaseUrl}/pricing`
+  const session = await getStoredSession()
+  if (session?.access_token && session?.refresh_token) {
+    const fragment = new URLSearchParams({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    }).toString()
+    await shell.openExternal(`${pricingUrl}#${fragment}`)
+  } else {
+    await shell.openExternal(pricingUrl)
+  }
+}
+
 // ── Credits cache + pushers ─────────────────────────────────────────────────
 
 let latestCreditsMeta: CreditsMeta | null = null
@@ -183,7 +205,9 @@ function isRetryableErrorType(type: ErrorType): boolean {
   // Re-submitting the same screenshot is only useful when the issue is
   // transient (network, timeout, AI glitch). Auth/billing/daily-limit/
   // no_questions all require user action or a different image.
-  return type === 'timeout' || type === 'network_error' || type === 'parse_error' || type === 'unknown'
+  return (
+    type === 'timeout' || type === 'network_error' || type === 'parse_error' || type === 'unknown'
+  )
 }
 
 // ── Permission state ─────────────────────────────────────────────────────────
@@ -418,7 +442,7 @@ export async function initIpc(): Promise<void> {
   })
 
   ipcMain.handle(IPC.AUTH_OPEN_PRICING, () => {
-    shell.openExternal(PRICING_URL)
+    return openWebPricing()
   })
 
   ipcMain.handle(IPC.AUTH_OPEN_SIGNIN, () => {

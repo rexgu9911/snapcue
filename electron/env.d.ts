@@ -3,6 +3,7 @@ interface ImportMetaEnv {
   readonly SNAPCUE_API_KEY: string
   readonly SNAPCUE_SUPABASE_URL: string
   readonly SNAPCUE_SUPABASE_ANON_KEY: string
+  readonly SNAPCUE_WEB_URL: string
 }
 
 interface ImportMeta {

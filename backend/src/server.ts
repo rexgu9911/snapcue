@@ -17,7 +17,13 @@ export async function buildApp() {
   })
 
   await app.register(cors, {
-    origin: [/^http:\/\/localhost(:\d+)?$/],
+    origin: [
+      // Local Next.js / web dev (any port).
+      /^http:\/\/localhost(:\d+)?$/,
+      // snapcue-web production — needed so the /pricing page can call
+      // POST /checkout (and future /billing-portal) cross-origin.
+      'https://snapcue-web.vercel.app',
+    ],
   })
 
   // Anti-abuse API key (orthogonal to user auth). Skip when SNAPCUE_API_KEY
@@ -25,9 +31,18 @@ export async function buildApp() {
   const snapcueApiKey = env.SNAPCUE_API_KEY
   if (snapcueApiKey) {
     app.addHook('onRequest', async (request, reply) => {
+      // Public endpoints that don't go through x-api-key:
+      //   - GET /health: liveness probe
+      //   - POST /webhooks/stripe: authenticated via Stripe-Signature header
+      //   - POST /checkout: called from snapcue-web (browser), where shipping
+      //     the API key in NEXT_PUBLIC_* env would defeat its purpose.
+      //     /checkout is JWT-gated via requireAuth and the Stripe checkout
+      //     session is bound to the authenticated user (metadata.user_id),
+      //     so an attacker with someone else's JWT can only generate a
+      //     checkout that ultimately charges *themself* — self-policing.
       if (request.method === 'GET' && request.url === '/health') return
-      // Stripe webhooks authenticate via Stripe-Signature, not x-api-key.
       if (request.method === 'POST' && request.url === '/webhooks/stripe') return
+      if (request.method === 'POST' && request.url === '/checkout') return
       if (request.headers['x-api-key'] !== snapcueApiKey) {
         return reply.status(401).send({ error: 'unauthorized' })
       }

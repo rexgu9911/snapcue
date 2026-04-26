@@ -38,10 +38,8 @@ contextBridge.exposeInMainWorld('snapcue', {
   retryCapture: () => ipcRenderer.invoke(IPC.CAPTURE_RETRY),
 
   // ── Credits ──────────────────────────────────────────────────────────────
-  getCreditsMeta: () =>
-    ipcRenderer.invoke(IPC.CREDITS_GET) as Promise<CreditsMeta | null>,
-  refreshCredits: () =>
-    ipcRenderer.invoke(IPC.CREDITS_REFRESH) as Promise<CreditsMeta | null>,
+  getCreditsMeta: () => ipcRenderer.invoke(IPC.CREDITS_GET) as Promise<CreditsMeta | null>,
+  refreshCredits: () => ipcRenderer.invoke(IPC.CREDITS_REFRESH) as Promise<CreditsMeta | null>,
   onCreditsUpdate: (cb: (meta: CreditsMeta | null) => void) => {
     const listener = (_e: Electron.IpcRendererEvent, meta: CreditsMeta | null) => cb(meta)
     ipcRenderer.on(IPC.CREDITS_UPDATE, listener)
