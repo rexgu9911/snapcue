@@ -36,7 +36,8 @@ macOS menu bar AI study assistant — 截图 → AI 分析 → 显示答案。
 - `cd backend && npm run dev` — 后端开发服务器（端口 3001）
 - `cd backend && npm test` — 后端测试
 - `npm run pack` — 生产构建 + 打包 .dmg（输出到 dist/）
-- `rm ~/Library/Application\ Support/snapcue/settings.json && npm run dev` — 重置设置并重启（重新触发 onboarding）
+- `rm -rf ~/Library/Application\ Support/snapcue/ && npm run dev` — 重置 dev 模式 user data（settings + auth）+ 重启
+- `rm -rf ~/Library/Application\ Support/SnapCue/` — 重置**打包版** user data（注意大写 S，跟 dev 模式分开）。Electron `app.getPath('userData')` 在 dev 用 `package.json:name`（snapcue 小写），打包用 `productName`（SnapCue 大写）—— 测试 .dmg 时两个路径都要清
 
 ## Code Style
 
@@ -293,7 +294,7 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 6.3 **全部完成 ✅**（task 1-8 全 ✅）—— Stripe checkout、billing portal、webhook handlers、UX polish（cancel-vs-renew 文案、防重复订阅 guard）端到端真付款验证通过。下一步 **Phase 7 — 打包自测 + 代码签名**：`npm run pack` 出 .dmg → 全新 install → Stripe / Supabase / 截图 / deep link 端到端 sanity check（特别要重点验 `snapcue://checkout-success` deep link 在打包模式下是否正确把 app 拉回前台，`lsregister` 在 dev / 打包路径绑定不一致是已知坑）。如果一切顺利，再走 Apple Developer 代码签名 + 公证发布
+- **当前 phase**：Phase 7.1 (代码签名 + Apple 公证) **完成 ✅** —— 签名+公证版 .dmg 端到端验证通过：全新机器装 SnapCue.app 双击启动**无 Gatekeeper 弹窗** + 截图分析 + Stripe 付款 + `snapcue://checkout-success` deep link 拉回 app + 自动刷新 credits + Manage subscription + Stripe billing portal + cancel 全链路 happy path 跑通。下一步 **snapcue.io 域名切换**（用户已购）+ **GitHub Releases 分发设置**，然后 **live mode 切换** 准备真实发布
 
 - **新 session 开头**：`git status` + `git log --oneline -5` 验证当前状态。本仓库 push 节奏由用户主动控制，AI 不要擅自 push。
 
@@ -452,8 +453,10 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 **阶段 7 — 打包发布**
 
-- 7.1 代码签名 + Apple 公证
-- 7.2 最终检查（lint、test、README、.env.example、.gitignore）
+- 7.1 ✅ **代码签名 + Apple 公证**（2026-04-25）：Developer ID Application 证书装 Keychain；`package.json build.mac` 配 `hardenedRuntime: true / gatekeeperAssess: false / entitlements: build/entitlements.mac.plist / entitlementsInherit / notarize: true`，移除 `identity: null` 让 electron-builder 自动 detect Keychain 证书；新建 `build/entitlements.mac.plist` 三条 hardened-runtime 例外（V8 JIT / unsigned executable memory / disable library validation —— sharp + @img native 模块要求）；`npm run pack` 跑通签名 + 上传 Apple notarytool 公证 + staple ticket，输出可直接分发的 `.dmg`。env vars `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID` 设在 shell（不进 git）。真机端到端验证通过，无 Gatekeeper 弹窗
+- 7.2 ⬜ snapcue.io 域名切换（用户已购）+ GitHub Releases 分发设置
+- 7.3 ⬜ Live mode 切换（test → real money）
+- 7.4 ⬜ 最终检查（lint、test、README、.env.example、auto-update 机制可选）
 
 ## 定价方案
 

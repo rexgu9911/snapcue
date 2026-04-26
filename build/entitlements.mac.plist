@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Hardened-runtime exemptions required for Electron + native modules.
+    Without these, code signing succeeds but the app crashes at launch on
+    notarized + Gatekeeper-checked installs.
+  -->
+
+  <!-- V8 (Chromium's JS engine) needs to allocate JIT-compiled code pages. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+
+  <!--
+    V8 + some native modules map writable+executable memory. macOS hardened
+    runtime forbids this by default; opt back in.
+  -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+
+  <!--
+    sharp / @img (libvips) ship prebuilt .dylibs that aren't signed by us.
+    Library validation would reject them; disable to allow loading.
+  -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>

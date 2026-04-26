@@ -63,9 +63,13 @@
     },
     "mac": {
       "target": "dmg",
-      "identity": null,
       "category": "public.app-category.education",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     },
     "dmg": {
       "window": {
