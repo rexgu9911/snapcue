@@ -137,6 +137,7 @@ export interface RendererToMainCommands {
   'onboarding:complete': { args: void; return: void }
   'auth:getCurrentUser': { args: void; return: AuthUser | null }
   'auth:signIn': { args: string; return: SignInResult }
+  'auth:verifyOtp': { args: { email: string; code: string }; return: SignInResult }
   'auth:signOut': { args: void; return: void }
   'auth:openPricing': { args: void; return: void }
   'auth:openSignin': { args: void; return: void }
@@ -174,6 +175,7 @@ export const IPC = {
   ONBOARDING_COMPLETE: 'onboarding:complete',
   AUTH_GET_CURRENT_USER: 'auth:getCurrentUser',
   AUTH_SIGN_IN: 'auth:signIn',
+  AUTH_VERIFY_OTP: 'auth:verifyOtp',
   AUTH_SIGN_OUT: 'auth:signOut',
   AUTH_OPEN_PRICING: 'auth:openPricing',
   AUTH_OPEN_SIGNIN: 'auth:openSignin',

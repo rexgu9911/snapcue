@@ -108,3 +108,21 @@ export async function signInWithMagicLink(
   if (error) return { success: false, error: error.message }
   return { success: true }
 }
+
+// Verify a 6-digit OTP code emailed by signInWithOtp. Primary auth path —
+// the magic link still works as fallback, but Gmail spam scanners pre-fetch
+// links and consume single-use tokens before the user clicks. A typed code
+// can't be pre-fetched.
+export async function verifyOtpCode(
+  email: string,
+  code: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Auth is not configured.' }
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'email',
+  })
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}

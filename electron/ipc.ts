@@ -1,12 +1,4 @@
-import {
-  app,
-  BrowserWindow,
-  desktopCapturer,
-  ipcMain,
-  shell,
-  net,
-  globalShortcut,
-} from 'electron'
+import { app, BrowserWindow, desktopCapturer, ipcMain, shell, net, globalShortcut } from 'electron'
 import {
   IPC,
   type CaptureMode,
@@ -30,7 +22,13 @@ import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 import { config } from './config'
-import { clearStoredSession, getCurrentUser, getStoredSession, signInWithMagicLink } from './auth'
+import {
+  clearStoredSession,
+  getCurrentUser,
+  getStoredSession,
+  signInWithMagicLink,
+  verifyOtpCode,
+} from './auth'
 import { createSigninWindow, closeSigninWindow } from './signin'
 
 const API_TIMEOUT_MS = 30_000
@@ -466,7 +464,10 @@ export async function initIpc(): Promise<void> {
     // returns silently if permission isn't granted, but the entry still
     // gets added to the Privacy list.
     try {
-      await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
+      await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1, height: 1 },
+      })
     } catch {
       // Registration happens on attempt regardless of result — ignore.
     }
@@ -515,6 +516,29 @@ export async function initIpc(): Promise<void> {
   ipcMain.handle(IPC.AUTH_SIGN_IN, async (_event, email: string): Promise<SignInResult> => {
     return signInWithMagicLink(email)
   })
+
+  ipcMain.handle(
+    IPC.AUTH_VERIFY_OTP,
+    async (_event, args: { email: string; code: string }): Promise<SignInResult> => {
+      const result = await verifyOtpCode(args.email, args.code)
+      if (!result.success) return result
+
+      // Mirror what the deep-link auth-callback path does after a successful
+      // verify: broadcast signed-in to all windows so onboarding/signin/footer
+      // update; close the standalone signin window if it was the entry point;
+      // refresh credits so footer shows balance immediately.
+      const user = await getCurrentUser()
+      if (user?.email) {
+        const payload = { email: user.email }
+        for (const win of BrowserWindow.getAllWindows()) {
+          win.webContents.send(IPC.AUTH_SIGNED_IN, payload)
+        }
+      }
+      closeSigninWindow()
+      void refreshCreditsMeta()
+      return { success: true }
+    },
+  )
 
   ipcMain.handle(IPC.AUTH_SIGN_OUT, async () => {
     await clearStoredSession()

@@ -50,6 +50,7 @@ interface SnapCueAPI {
   // Auth
   getCurrentUser: () => Promise<AuthUser | null>
   signIn: (email: string) => Promise<SignInResult>
+  verifyOtp: (email: string, code: string) => Promise<SignInResult>
   signOut: () => Promise<void>
   openPricing: () => Promise<void>
   openSignin: () => Promise<void>
