@@ -115,7 +115,7 @@ describe('POST /billing-portal', () => {
     expect(mockPortalCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: 'cus_test_123',
-        return_url: expect.stringContaining('snapcue-web.vercel.app'),
+        return_url: expect.stringContaining('snapcue.io'),
       }),
     )
   })

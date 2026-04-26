@@ -2,9 +2,10 @@ import { describe, it, expect, vi } from 'vitest'
 
 // CORS is a config one-liner, but it's also the kind of thing that silently
 // breaks when someone "cleans up" the origin list. These tests pin the
-// intended behavior: snapcue-web (prod) and localhost dev are allowed,
-// everything else doesn't get an Access-Control-Allow-Origin header (which
-// is what makes browsers block the actual request).
+// intended behavior: snapcue.io (prod), the legacy snapcue-web.vercel.app
+// origin, and localhost dev are allowed, everything else doesn't get an
+// Access-Control-Allow-Origin header (which is what makes browsers block
+// the actual request).
 
 vi.mock('../lib/env.js', () => ({
   env: {
@@ -55,7 +56,12 @@ async function preflight(origin: string) {
 }
 
 describe('CORS', () => {
-  it('allows snapcue-web production origin', async () => {
+  it('allows snapcue.io production origin', async () => {
+    const res = await preflight('https://snapcue.io')
+    expect(res.headers['access-control-allow-origin']).toBe('https://snapcue.io')
+  })
+
+  it('allows legacy snapcue-web.vercel.app origin', async () => {
     const res = await preflight('https://snapcue-web.vercel.app')
     expect(res.headers['access-control-allow-origin']).toBe('https://snapcue-web.vercel.app')
   })

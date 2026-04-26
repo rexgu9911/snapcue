@@ -20,7 +20,7 @@ import { supabaseAdmin } from '../lib/supabase.js'
 // app is the canonical entry point for "Manage subscription"; if a future
 // web /account page wants to call it, we'll add the bypass at that point.
 
-const RETURN_URL = 'https://snapcue-web.vercel.app/pricing'
+const RETURN_URL = 'https://snapcue.io/pricing'
 
 export const billingPortalRoute: FastifyPluginAsync = async (fastify) => {
   const stripe = new Stripe(env.STRIPE_SECRET_KEY)

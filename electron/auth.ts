@@ -4,7 +4,7 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
 const AUTH_FILE = join(app.getPath('userData'), 'auth.json')
-const MAGIC_LINK_REDIRECT = 'https://snapcue-web.vercel.app/auth/callback'
+const MAGIC_LINK_REDIRECT = 'https://snapcue.io/auth/callback'
 
 // ── File-backed storage adapter ──────────────────────────────────────────────
 //

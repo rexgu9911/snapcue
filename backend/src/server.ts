@@ -23,6 +23,9 @@ export async function buildApp() {
       /^http:\/\/localhost(:\d+)?$/,
       // snapcue-web production — needed so the /pricing page can call
       // POST /checkout (and future /billing-portal) cross-origin.
+      'https://snapcue.io',
+      // Legacy Vercel domain — kept so preview deployments and any
+      // unrouted apex traffic continue to function during cutover.
       'https://snapcue-web.vercel.app',
     ],
   })

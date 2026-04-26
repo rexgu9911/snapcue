@@ -24,8 +24,8 @@ interface CheckoutBody {
 }
 
 const SUCCESS_URL =
-  'https://snapcue-web.vercel.app/checkout-success?session_id={CHECKOUT_SESSION_ID}'
-const CANCEL_URL = 'https://snapcue-web.vercel.app/checkout-cancel'
+  'https://snapcue.io/checkout-success?session_id={CHECKOUT_SESSION_ID}'
+const CANCEL_URL = 'https://snapcue.io/checkout-cancel'
 
 function isProductCode(s: string | undefined): s is ProductCode {
   return s === 'weekly' || s === 'monthly' || s === 'pack_30' || s === 'pack_100'
