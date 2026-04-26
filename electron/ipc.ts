@@ -1,4 +1,12 @@
-import { app, BrowserWindow, ipcMain, shell, net, globalShortcut } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  shell,
+  net,
+  globalShortcut,
+} from 'electron'
 import {
   IPC,
   type CaptureMode,
@@ -449,7 +457,19 @@ export async function initIpc(): Promise<void> {
     return handleRetry()
   })
 
-  ipcMain.handle(IPC.PERMISSION_OPEN_SETTINGS, () => {
+  ipcMain.handle(IPC.PERMISSION_OPEN_SETTINGS, async () => {
+    // Force-register SnapCue in macOS TCC before opening Settings.
+    // Without this, a fresh install has never attempted screen capture,
+    // so the Privacy & Security → Screen Recording list is empty and
+    // the user can't toggle anything on. Calling desktopCapturer.getSources
+    // is the lightest-touch API that triggers TCC registration; it
+    // returns silently if permission isn't granted, but the entry still
+    // gets added to the Privacy list.
+    try {
+      await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
+    } catch {
+      // Registration happens on attempt regardless of result — ignore.
+    }
     shell.openExternal(
       'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
     )
@@ -471,6 +491,14 @@ export async function initIpc(): Promise<void> {
 
   ipcMain.handle(IPC.APP_QUIT, () => {
     app.quit()
+  })
+
+  ipcMain.handle(IPC.APP_RELAUNCH, () => {
+    // macOS caches Screen Recording permission status per-process: even
+    // after the user toggles it on in System Settings, the running app
+    // still reads "denied" until the process restarts. Hence relaunch.
+    app.relaunch()
+    app.exit(0)
   })
 
   ipcMain.handle(IPC.ONBOARDING_COMPLETE, () => {

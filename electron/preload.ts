@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('snapcue', {
 
   // ── App lifecycle ───────────────────────────────────────────────────────
   quit: () => ipcRenderer.invoke(IPC.APP_QUIT),
+  relaunch: () => ipcRenderer.invoke(IPC.APP_RELAUNCH),
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   completeOnboarding: () => ipcRenderer.invoke(IPC.ONBOARDING_COMPLETE),

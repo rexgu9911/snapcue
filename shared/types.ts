@@ -133,6 +133,7 @@ export interface RendererToMainCommands {
   'permission:openSettings': { args: void; return: void }
   'permission:recheck': { args: void; return: boolean }
   'app:quit': { args: void; return: void }
+  'app:relaunch': { args: void; return: void }
   'onboarding:complete': { args: void; return: void }
   'auth:getCurrentUser': { args: void; return: AuthUser | null }
   'auth:signIn': { args: string; return: SignInResult }
@@ -169,6 +170,7 @@ export const IPC = {
   PERMISSION_OPEN_SETTINGS: 'permission:openSettings',
   PERMISSION_RECHECK: 'permission:recheck',
   APP_QUIT: 'app:quit',
+  APP_RELAUNCH: 'app:relaunch',
   ONBOARDING_COMPLETE: 'onboarding:complete',
   AUTH_GET_CURRENT_USER: 'auth:getCurrentUser',
   AUTH_SIGN_IN: 'auth:signIn',

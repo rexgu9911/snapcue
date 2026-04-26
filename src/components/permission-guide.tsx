@@ -1,19 +1,10 @@
-import { useState } from 'react'
-
 export function PermissionGuide() {
-  const [checking, setChecking] = useState(false)
-
   const handleOpenSettings = () => {
     window.snapcue.openPermissionSettings()
   }
 
-  const handleRecheck = async () => {
-    setChecking(true)
-    try {
-      await window.snapcue.recheckPermission()
-    } finally {
-      setChecking(false)
-    }
+  const handleRelaunch = () => {
+    window.snapcue.relaunch()
   }
 
   return (
@@ -25,7 +16,8 @@ export function PermissionGuide() {
         <p className="text-sm font-medium text-white/90">Screen recording permission required</p>
       </div>
       <p className="text-xs leading-relaxed text-white/50">
-        Grant access in System Settings, then tap recheck below.
+        Toggle SnapCue on in System Settings, then restart the app for macOS to pick up the new
+        permission.
       </p>
       <div className="flex flex-col gap-2">
         <button
@@ -35,11 +27,10 @@ export function PermissionGuide() {
           Open System Settings
         </button>
         <button
-          onClick={handleRecheck}
-          disabled={checking}
-          className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/15 disabled:opacity-50"
+          onClick={handleRelaunch}
+          className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/15"
         >
-          {checking ? 'Checking...' : 'Recheck Permission'}
+          Restart SnapCue
         </button>
       </div>
     </div>
