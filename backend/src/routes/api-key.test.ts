@@ -101,6 +101,22 @@ describe('SNAPCUE_API_KEY hook', () => {
     expect(res.json()).toEqual({ error: 'unauthorized' })
   })
 
+  it('enforces x-api-key on POST /billing-portal', async () => {
+    // Unlike /checkout (called from browser, hence bypassed), /billing-portal
+    // is only ever called from Electron main where the API key is available.
+    // Pin the enforcement so a future "make billing-portal browser-callable"
+    // attempt fails this test and forces an explicit security review.
+    const app = await buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/billing-portal',
+      headers: { 'content-type': 'application/json' },
+      payload: '{}',
+    })
+    expect(res.statusCode).toBe(401)
+    expect(res.json()).toEqual({ error: 'unauthorized' })
+  })
+
   it('lets request through when x-api-key matches', async () => {
     const app = await buildApp()
     const res = await app.inject({

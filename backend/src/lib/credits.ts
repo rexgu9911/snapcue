@@ -15,6 +15,13 @@ export type CreditsMeta = {
   subscription_status: SubscriptionStatus
   subscription_type: SubscriptionType
   subscription_expires_at: string | null
+  /**
+   * True when the user has cancelled their subscription via the Stripe
+   * billing portal (or directly in the Dashboard) and the cancellation
+   * takes effect at `subscription_expires_at` rather than immediately.
+   * Drives the Settings "Cancels MMM dd" vs "Renews MMM dd" label.
+   */
+  subscription_cancel_at_period_end: boolean
 }
 
 export async function checkAndReserveCredit(userId: string): Promise<ReserveResult> {
@@ -60,6 +67,7 @@ type ProfileRow = {
   subscription_status: SubscriptionStatus
   subscription_type: SubscriptionType
   subscription_expires_at: string | null
+  subscription_cancel_at_period_end: boolean
   daily_usage_count: number
 }
 
@@ -67,7 +75,7 @@ export async function getCreditsMeta(userId: string): Promise<CreditsMeta | null
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .select(
-      'free_credits_remaining, paid_credits_balance, subscription_status, subscription_type, subscription_expires_at, daily_usage_count',
+      'free_credits_remaining, paid_credits_balance, subscription_status, subscription_type, subscription_expires_at, subscription_cancel_at_period_end, daily_usage_count',
     )
     .eq('id', userId)
     .single()
@@ -89,5 +97,6 @@ export async function getCreditsMeta(userId: string): Promise<CreditsMeta | null
     subscription_status: row.subscription_status,
     subscription_type: row.subscription_type,
     subscription_expires_at: row.subscription_expires_at,
+    subscription_cancel_at_period_end: row.subscription_cancel_at_period_end ?? false,
   }
 }

@@ -293,7 +293,7 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
 
 > 此小节供 AI agent 续接 session 时快速定位状态；内容会随 phase 推进滚动更新。
 
-- **当前 phase**：Phase 6.3 task 6 (checkout flow) **全部完成 ✅** — Pattern B（app → 浏览器 web `/pricing` → Stripe Checkout → success deep link 回 app → credits 刷新）端到端真付款验证通过（test mode `4242` 卡 → `checkout.session.completed` webhook → `paid_credits_balance +30` → dropdown footer 实时刷新）。下一步 **task 7 (billing-portal + ManageLink)** —— 给已订阅用户的"管理订阅 / 取消"路径
+- **当前 phase**：Phase 6.3 **全部完成 ✅**（task 1-8 全 ✅）—— Stripe checkout、billing portal、webhook handlers、UX polish（cancel-vs-renew 文案、防重复订阅 guard）端到端真付款验证通过。下一步 **Phase 7 — 打包自测 + 代码签名**：`npm run pack` 出 .dmg → 全新 install → Stripe / Supabase / 截图 / deep link 端到端 sanity check（特别要重点验 `snapcue://checkout-success` deep link 在打包模式下是否正确把 app 拉回前台，`lsregister` 在 dev / 打包路径绑定不一致是已知坑）。如果一切顺利，再走 Apple Developer 代码签名 + 公证发布
 
 - **新 session 开头**：`git status` + `git log --oneline -5` 验证当前状态。本仓库 push 节奏由用户主动控制，AI 不要擅自 push。
 
@@ -307,7 +307,7 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`：跟 backend 同 Supabase project 的 anon (public) key（**不是** service_role）
   - `NEXT_PUBLIC_SNAPCUE_API_URL=http://localhost:3001`（生产 Vercel 项目设置里要换成 Railway URL）
 
-- **本地 webhook 联调**：`stripe listen --forward-to localhost:3001/webhooks/stripe` 在用户终端常驻——⚠️ **必须带 `--forward-to` flag**，不带等于"听但不转发"，事件根本不会到 backend（task 6 端到端调试踩过这个坑，浪费了大量时间排查 webhook 不到的原因）。`stripe trigger checkout.session.completed` 可手动触发 fixtures 测试链路。后端 dev 服务器需要同时跑（`cd backend && npm run dev`）。
+- **本地 webhook 联调**：用 `cd backend && npm run stripe:listen` 一键起 forwarder（task 8 时加的 npm script，省掉记忆 `--forward-to localhost:3001/webhooks/stripe` 的麻烦）。⚠️ 历史踩坑：早期跑 `stripe listen` 不带 `--forward-to` flag 等于"听但不转发"，事件 CLI 收到了但根本不会到 backend，task 6/7 端到端调试时浪费了大量时间排查 webhook 不到的原因——npm script 是这条踩坑的永久护栏。`stripe trigger checkout.session.completed` 可手动触发 fixtures 测试链路。后端 dev 服务器 `cd backend && npm run dev` 同时跑。
 
 - **task 4-5 已完成的范围**：
   - `POST /webhooks/stripe`（`backend/src/routes/stripe-webhook.ts`）：encapsulated raw-body parser、Stripe-Signature 校验、`webhook_events` 表 dedup（PK = event.id）、三个 handler（`checkout.session.completed` 写 stripe_customer_id + 加 paid_credits_balance；`customer.subscription.updated` 同步 status/type/expires_at — **注意 Stripe API 2025+ 把 `current_period_end` 移到了 subscription item 级别**；`customer.subscription.deleted` set canceled）
@@ -327,11 +327,20 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   - **snapcue-web** (`src/lib/checkout.ts`)：`startCheckout(product)` —— 拿 fresh JWT、POST `${API_URL}/checkout`，返回 typed `{ ok: true; url } | { ok: false; error }`
   - **snapcue-web** (`PricingContent.tsx`)：useEffect + `firedRef` 防 StrictMode 双触发，消费 hash → setSession → replaceState 立刻清；4 个付费卡片按钮接 `handleSubscribe`；Free 卡片改 `<Link href="/">`；pending state + disabled 防双击；红色 alert banner 显示错误
 
-- **下次 session 第一步**（task 7 — billing-portal + ManageLink）：
-  1. **后端 `POST /billing-portal`**（仿 /checkout 模式）：requireAuth → 查 profile.stripe_customer_id（缺则 400）→ `stripe.billingPortal.sessions.create({ customer, return_url: '${WEB_URL}/account' or '/pricing' })` → 返回 `{ url }`。同样把这条路由加进 `server.ts` x-api-key 豁免列表（自我反噬模型同 /checkout）
-  2. **snapcue-web `/account` 页面**（建议新建独立 page，比塞 /pricing 顶部清晰）：useEffect 消费 fragment → setSession → 显示 plan 详情 + "Manage subscription" 按钮 → 点击调 `${API_URL}/billing-portal` 拿 URL → `window.location.href`
-  3. **Electron settings-view ManageLink**：现在 active subscription 用户的 "Manage subscription" 链接走 `auth:openPricing`；改成新 IPC `auth:openAccount`（或扩展 openPricing 支持参数）→ openExternal `${webBaseUrl}/account#access_token=...&refresh_token=...`
-  4. **测试卡端到端**：用 4242 卡完成订阅 → app Settings 看 "Manage subscription" → web /account → billing portal cancel → 看 webhook customer.subscription.deleted handler 是否正确把 status 设 canceled
+- **task 8 已完成的范围**（2026-04-25，billing portal + UX polish + bug 修复）：
+  - **Pattern A 走通 billing portal**：`POST /billing-portal` (`backend/src/routes/billing-portal.ts`) requireAuth → 查 profile.stripe_customer_id（缺则 400 `no_customer`）→ `stripe.billingPortal.sessions.create` → 返 `{ url }`。x-api-key **必填**（仅 Electron 调，浏览器没机会拿到 key）。Electron `auth:openBillingPortal` IPC + helper（`ipc.ts openBillingPortal()`）+ settings-view "Manage subscription" 链接接通 + ErrorRow 显示失败原因
+  - **Bug 修复 - `customer.subscription.created` 漏处理**（task 4 webhook handler 历史 bug）：原 switch 只 case `updated`/`deleted`，但 Stripe 实际首次激活订阅触发的是 `created`（payload 形状跟 `updated` 完全一致）。修复加 `case 'customer.subscription.created':` fall-through 到 `handleSubscriptionUpdated`。pin 测试 `syncs profile on customer.subscription.created (initial activation)`。这条 bug 是 task 6 之前没人真订过订阅一直没暴露，task 8 端到端测试时暴雷
+  - **UX 修 1 - "Cancels MMM dd" vs "Renews MMM dd"**：billing portal 默认 cancel-at-period-end 行为下，sub.status 还是 'active'，但 UI 误导用户说"Renews"。新增 migration `20260425_subscription_cancel_flag.sql` 加列 `subscription_cancel_at_period_end`，webhook handler `handleSubscriptionUpdated` 写入 `sub.cancel_at_period_end`，`handleSubscriptionDeleted` reset 成 false。settings-view PlanDetails 据此切换 InfoRow 标签
+  - **UX 修 2 - 防重复订阅 guard**：snapcue-web `/pricing` mount 时通过 `src/lib/me.ts getSubscriptionState()` 直读 Supabase profile（RLS `profiles: read own` 允许），active sub 用户看到顶部绿框 banner + Weekly/Monthly 按钮 disabled + 当前 plan 显示 "Current plan ✓"。credit pack 仍可买（订阅期间存货合理）
+  - **DX 改进**：`backend/package.json` 加 `npm run stripe:listen` 一键起 forwarder，永久护栏 `--forward-to` flag 不会忘
+  - **测试覆盖**：38 个 backend tests 全 pass（5 新 billing-portal、+ created 事件 case、+ cancel_at_period_end 写入 case、+ /billing-portal 必带 x-api-key 反向 pin、existing analyze.test.ts 同步加 `cancel_at_period_end: false` 字段）
+
+- **下次 session 第一步**（Phase 7 — 打包自测 + 签名）：
+  1. **打包自测**（最高优先级，6.2/6.3 攒下的技术债）：`npm run pack` → 把生成的 `dist/SnapCue-*.dmg` 拖到 Applications 安装 → 用全新 user data 跑端到端 happy path：
+     - 首次启动看到 onboarding 4 页 → magic link 登录 → 截图分析 → Settings → Get more credits → 浏览器 /pricing → Stripe Checkout 4242 卡付款 → success 页 → "Open SnapCue" 按钮（**deep link 关键测试**：打包模式下 `snapcue://checkout-success` 需要正确触发 app handleDeepLink，dev 模式跟打包路径不一致是已知坑）→ dropdown 应自动刷新 credits → Settings 看 Manage subscription → 跳 Stripe portal → cancel → DB 同步 → UI 显示 Cancels
+  2. **deep link 调试**：如果打包后 deep link 不工作，需要 `lsregister` 手动注册 `com.snapcue.app` 协议，或改 `electron/main.ts` 的 protocol handler 注册逻辑
+  3. **代码签名 + 公证**：用户需要 Apple Developer 账号（$99/year）。`electron-builder` 配 `mac.identity` 设为 cert name 启用签名，`mac.notarize` 配 Apple ID + app password 启用公证。参考 electron-builder 官方文档
+  4. **Live mode 切换 checklist**：backend `.env` STRIPE_SECRET_KEY / STRIPE_PRICE_* 全换成 live mode 值；Stripe Dashboard live mode 单独配 webhook endpoint（test mode endpoint 仅对 test 流量生效）；snapcue-web Vercel env 不动；snapcue Electron `.env.production` 加 `SNAPCUE_WEB_URL=https://snapcue-web.vercel.app`
 
 - **已知技术债账本**：
   - 打包版自测（`npm run pack` → .dmg 安装 → 端到端 sanity check）在 6.2 / 6.3 都没做，**强烈建议 task 7 后期补**。重点验证：deep link `snapcue://checkout-success` 能正确把打包后的 app 拉回前台（`lsregister` 注册了 `com.snapcue.app`，dev mode 跟打包模式协议绑定路径不一样，可能踩坑）
@@ -438,7 +447,7 @@ JWT 验证 401 问题最终定位是 `backend/.env` 里的 `SUPABASE_SERVICE_ROL
   5. ✅ **profiles.stripe_customer_id 写回**（2026-04-25）— webhook 那半（checkout.session.completed handler）+ checkout 路由那半（customers.create + idempotency key + writeback）双重保障，任一失败另一边兜底。
   6. ✅ **Checkout flow** — Pattern B（2026-04-25）：app `auth:openPricing` 用 URL fragment 把 Supabase session 传到浏览器 web `/pricing`，web 解析后 `setSession()` 同账号登录，4 个付费按钮调 `${API_URL}/checkout` 拿 Stripe Checkout URL 跳转。后端 CORS 加 vercel origin、`/checkout` 加 x-api-key 豁免（双向测试 pin 住）。snapcue-web 加 `@supabase/supabase-js` + `src/lib/supabase.ts` + `src/lib/checkout.ts` + PricingContent 改造。详见 ## Session 续接指引 task 6 Block 1-4 范围。
   7. ✅ **Credits 刷新机制** — 两路触发：(a) dropdown hidden → visible 调 `setOnDropdownShow` → `refreshCreditsMeta()`（已有）；(b) `snapcue://checkout-success` deep link 在 `main.ts handleDeepLink` 触发同样的 refresh。付款回 app 之后用户无论先看 dropdown 还是先 cmd-tab 切回都能看到新余额
-  8. ⬜ **Billing portal + ManageLink** — 给已订阅用户的"管理订阅 / 取消"路径，详见 ## Session 续接指引
+  8. ✅ **Billing portal + UX polish + bug 修复**（2026-04-25）：Pattern A `POST /billing-portal` + Electron `auth:openBillingPortal` IPC + settings-view "Manage subscription" 接通；webhook `customer.subscription.created` 漏处理修复；`subscription_cancel_at_period_end` 列加进 profiles，UI "Cancels MMM dd" vs "Renews MMM dd" 文案切换；snapcue-web `/pricing` 加防重复订阅 guard（active sub 用户看到 banner + Subscribe 按钮 disabled + "Current plan ✓"）；`npm run stripe:listen` 永久护栏。详见 ## Session 续接指引 task 8 范围
 - 6.4 ⬜ 产品官网（独立项目 snapcue-web/，Next.js + Tailwind，landing page + pricing + download）
 
 **阶段 7 — 打包发布**

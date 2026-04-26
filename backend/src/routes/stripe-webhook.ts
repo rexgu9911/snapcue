@@ -56,7 +56,9 @@ function priceIdToType(priceId: string | undefined): 'weekly' | 'monthly' | null
   return null
 }
 
-function customerIdOf(ref: string | Stripe.Customer | Stripe.DeletedCustomer | null): string | null {
+function customerIdOf(
+  ref: string | Stripe.Customer | Stripe.DeletedCustomer | null,
+): string | null {
   if (typeof ref === 'string') return ref
   if (ref && 'id' in ref) return ref.id
   return null
@@ -187,20 +189,20 @@ async function handleSubscriptionUpdated(
   // current_period_end lives on the subscription item in Stripe API 2025+.
   // For our single-item subscriptions the first item's value is authoritative.
   const periodEnd = firstItem?.current_period_end
-  const expiresAt =
-    typeof periodEnd === 'number' ? new Date(periodEnd * 1000).toISOString() : null
+  const expiresAt = typeof periodEnd === 'number' ? new Date(periodEnd * 1000).toISOString() : null
 
   const patch: Record<string, unknown> = {
     subscription_status: status,
     subscription_expires_at: expiresAt,
+    // sub.cancel_at_period_end flips to true when the user cancels via
+    // billing portal, false when they re-activate. Mirror it so the UI
+    // can render "Cancels MMM dd" instead of "Renews MMM dd".
+    subscription_cancel_at_period_end: sub.cancel_at_period_end === true,
     updated_at: new Date().toISOString(),
   }
   if (subType) patch['subscription_type'] = subType
 
-  const { error } = await supabaseAdmin
-    .from('profiles')
-    .update(patch)
-    .eq('id', profileId)
+  const { error } = await supabaseAdmin.from('profiles').update(patch).eq('id', profileId)
   if (error) {
     throw new Error(`subscription_updated patch failed: ${error.message}`)
   }
@@ -222,6 +224,10 @@ async function handleSubscriptionDeleted(
     .from('profiles')
     .update({
       subscription_status: 'canceled',
+      // Period has elapsed — there's no future "cancels on" date to show.
+      // Reset the flag so the UI doesn't carry stale "Cancels …" wording
+      // after the sub is fully gone.
+      subscription_cancel_at_period_end: false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', profileId)
@@ -237,10 +243,8 @@ export const stripeWebhookRoute: FastifyPluginAsync = async (fastify) => {
   // Fastify JSON parser would consume them. Override with a buffer parser
   // scoped to this encapsulated plugin only — other routes keep JSON parsing.
   fastify.removeContentTypeParser('application/json')
-  fastify.addContentTypeParser(
-    'application/json',
-    { parseAs: 'buffer' },
-    (_req, body, done) => done(null, body),
+  fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) =>
+    done(null, body),
   )
 
   const stripe = new Stripe(env.STRIPE_SECRET_KEY)
@@ -280,10 +284,7 @@ export const stripeWebhookRoute: FastifyPluginAsync = async (fastify) => {
       .select('id')
 
     if (insertError) {
-      fastify.log.error(
-        { err: insertError, eventId: event.id },
-        'webhook_events insert failed',
-      )
+      fastify.log.error({ err: insertError, eventId: event.id }, 'webhook_events insert failed')
       return reply.status(500).send({ error: 'webhook persistence failed' })
     }
 
@@ -300,6 +301,13 @@ export const stripeWebhookRoute: FastifyPluginAsync = async (fastify) => {
         case 'checkout.session.completed':
           await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, fastify.log)
           break
+        // Stripe fires `created` on first subscription activation (via Checkout)
+        // and `updated` on subsequent state changes (renewal, plan change, etc).
+        // Payload shape is identical — both deliver a Stripe.Subscription — and
+        // our handler is fully data-driven (status / price / period_end), so we
+        // route both to the same code path. Missing the `created` case was the
+        // bug that left subscription_status='none' after first checkout.
+        case 'customer.subscription.created':
         case 'customer.subscription.updated':
           await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, fastify.log)
           break

@@ -9,6 +9,7 @@ import {
   type AuthUser,
   type SignInResult,
   type CreditsMeta,
+  type OpenBillingPortalResult,
 } from '../shared/types'
 import {
   sendToDropdown,
@@ -155,6 +156,60 @@ async function openWebPricing(): Promise<void> {
   } else {
     await shell.openExternal(pricingUrl)
   }
+}
+
+// ── Billing portal (Stripe) ──────────────────────────────────────────────────
+//
+// Pattern A: app → backend /billing-portal → openExternal Stripe portal.
+// Unlike checkout, billing management has no marketing surface area we'd
+// want to express in our own UI — Stripe's hosted portal handles update
+// card, cancel, view invoices, etc. So we skip the web /account hop.
+
+async function openBillingPortal(): Promise<OpenBillingPortalResult> {
+  const session = await getStoredSession()
+  if (!session?.access_token) {
+    return { ok: false, error: 'Sign in required.' }
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session.access_token}`,
+  }
+  if (config.apiKey) {
+    headers['x-api-key'] = config.apiKey
+  }
+
+  let res: Response
+  try {
+    res = await net.fetch(`${config.apiBaseUrl}/billing-portal`, {
+      method: 'POST',
+      headers,
+      body: '{}',
+    })
+  } catch {
+    return { ok: false, error: 'Cannot reach server. Check your connection.' }
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      return { ok: false, error: 'Sign in required.' }
+    }
+    if (res.status === 400) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string }
+      if (body.error === 'no_customer') {
+        return { ok: false, error: 'No active subscription to manage.' }
+      }
+    }
+    return { ok: false, error: `Could not open billing portal (${res.status}).` }
+  }
+
+  const body = (await res.json().catch(() => ({}))) as { url?: string }
+  if (!body.url) {
+    return { ok: false, error: 'Billing portal URL missing.' }
+  }
+
+  await shell.openExternal(body.url)
+  return { ok: true }
 }
 
 // ── Credits cache + pushers ─────────────────────────────────────────────────
@@ -443,6 +498,10 @@ export async function initIpc(): Promise<void> {
 
   ipcMain.handle(IPC.AUTH_OPEN_PRICING, () => {
     return openWebPricing()
+  })
+
+  ipcMain.handle(IPC.AUTH_OPEN_BILLING_PORTAL, async (): Promise<OpenBillingPortalResult> => {
+    return openBillingPortal()
   })
 
   ipcMain.handle(IPC.AUTH_OPEN_SIGNIN, () => {

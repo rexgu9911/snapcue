@@ -42,6 +42,12 @@ export interface CreditsMeta {
   subscription_status: SubscriptionStatus
   subscription_type: SubscriptionType
   subscription_expires_at: string | null
+  /**
+   * True when the user has cancelled and the cancellation takes effect at
+   * `subscription_expires_at`. Drives "Cancels MMM dd" vs "Renews MMM dd"
+   * in the Settings ACCOUNT row.
+   */
+  subscription_cancel_at_period_end: boolean
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────
@@ -80,6 +86,11 @@ export interface SignInResult {
   success: boolean
   error?: string
 }
+
+// Result of opening the Stripe billing portal from Electron main. Returned
+// to the renderer so the caller can render an inline error (e.g., "no
+// active subscription to manage") instead of silently failing.
+export type OpenBillingPortalResult = { ok: true } | { ok: false; error: string }
 
 // ── IPC Channel Definitions ──────────────────────────────────────────────────
 //
@@ -128,6 +139,7 @@ export interface RendererToMainCommands {
   'auth:signOut': { args: void; return: void }
   'auth:openPricing': { args: void; return: void }
   'auth:openSignin': { args: void; return: void }
+  'auth:openBillingPortal': { args: void; return: OpenBillingPortalResult }
   'credits:get': { args: void; return: CreditsMeta | null }
   'credits:refresh': { args: void; return: CreditsMeta | null }
 }
@@ -163,6 +175,7 @@ export const IPC = {
   AUTH_SIGN_OUT: 'auth:signOut',
   AUTH_OPEN_PRICING: 'auth:openPricing',
   AUTH_OPEN_SIGNIN: 'auth:openSignin',
+  AUTH_OPEN_BILLING_PORTAL: 'auth:openBillingPortal',
   CREDITS_GET: 'credits:get',
   CREDITS_REFRESH: 'credits:refresh',
 } as const

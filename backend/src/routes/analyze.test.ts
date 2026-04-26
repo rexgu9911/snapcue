@@ -5,19 +5,14 @@ process.env['OPENAI_API_KEY'] = 'sk-test-key'
 process.env['SUPABASE_URL'] = 'https://test.supabase.co'
 process.env['SUPABASE_SERVICE_ROLE_KEY'] = 'test-service-role-key'
 
-const {
-  mockOpenAICreate,
-  mockGetUser,
-  mockRpc,
-  mockProfileSingle,
-  mockUsageLogsInsert,
-} = vi.hoisted(() => ({
-  mockOpenAICreate: vi.fn(),
-  mockGetUser: vi.fn(),
-  mockRpc: vi.fn(),
-  mockProfileSingle: vi.fn(),
-  mockUsageLogsInsert: vi.fn(),
-}))
+const { mockOpenAICreate, mockGetUser, mockRpc, mockProfileSingle, mockUsageLogsInsert } =
+  vi.hoisted(() => ({
+    mockOpenAICreate: vi.fn(),
+    mockGetUser: vi.fn(),
+    mockRpc: vi.fn(),
+    mockProfileSingle: vi.fn(),
+    mockUsageLogsInsert: vi.fn(),
+  }))
 
 vi.mock('openai', () => ({
   default: vi.fn().mockImplementation(() => ({
@@ -149,6 +144,7 @@ describe('POST /analyze', () => {
         subscription_status: 'none',
         subscription_type: null,
         subscription_expires_at: null,
+        subscription_cancel_at_period_end: false,
       },
     })
     expect(mockOpenAICreate).not.toHaveBeenCalled()
@@ -189,6 +185,7 @@ describe('POST /analyze', () => {
       subscription_status: 'active',
       subscription_type: 'monthly',
       subscription_expires_at: '2099-12-31T00:00:00Z',
+      subscription_cancel_at_period_end: false,
     })
     expect(mockOpenAICreate).not.toHaveBeenCalled()
   })

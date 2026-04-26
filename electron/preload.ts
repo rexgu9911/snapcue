@@ -8,6 +8,7 @@ import {
   type CaptureError,
   type SignInResult,
   type CreditsMeta,
+  type OpenBillingPortalResult,
 } from '../shared/types'
 
 contextBridge.exposeInMainWorld('snapcue', {
@@ -73,6 +74,8 @@ contextBridge.exposeInMainWorld('snapcue', {
   openPricing: () => ipcRenderer.invoke(IPC.AUTH_OPEN_PRICING) as Promise<void>,
   openSignin: () => ipcRenderer.invoke(IPC.AUTH_OPEN_SIGNIN) as Promise<void>,
   closeSignin: () => ipcRenderer.send(IPC.AUTH_CLOSE_SIGNIN),
+  openBillingPortal: () =>
+    ipcRenderer.invoke(IPC.AUTH_OPEN_BILLING_PORTAL) as Promise<OpenBillingPortalResult>,
   onAuthSignedIn: (cb: (payload: { email: string }) => void) => {
     const listener = (_e: Electron.IpcRendererEvent, payload: { email: string }) => cb(payload)
     ipcRenderer.on(IPC.AUTH_SIGNED_IN, listener)

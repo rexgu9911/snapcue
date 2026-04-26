@@ -197,6 +197,7 @@ describe('POST /webhooks/stripe', () => {
           id: 'sub_test_1',
           customer: 'cus_test_123',
           status: 'active',
+          cancel_at_period_end: false,
           metadata: {},
           items: {
             data: [
@@ -226,6 +227,94 @@ describe('POST /webhooks/stripe', () => {
         subscription_status: 'active',
         subscription_type: 'monthly',
         subscription_expires_at: new Date(1_800_000_000 * 1000).toISOString(),
+        subscription_cancel_at_period_end: false,
+      }),
+    )
+  })
+
+  it('records cancel_at_period_end when user cancels via billing portal', async () => {
+    // Stripe billing portal default: cancel takes effect at period end. The
+    // sub stays status='active' but cancel_at_period_end flips to true. UI
+    // depends on this flag to show "Cancels MMM dd" instead of "Renews".
+    mockConstructEvent.mockReturnValueOnce({
+      id: 'evt_sub_cancel_at_period_end',
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_test_3',
+          customer: 'cus_test_789',
+          status: 'active',
+          cancel_at_period_end: true,
+          metadata: {},
+          items: {
+            data: [
+              {
+                id: 'si_test_3',
+                price: { id: 'price_monthly_fake' },
+                current_period_end: 1_800_000_000,
+              },
+            ],
+          },
+        },
+      },
+    })
+    mockProfileMaybeSingle.mockResolvedValueOnce({
+      data: { id: 'user-ccc' },
+      error: null,
+    })
+
+    const app = await buildApp()
+    const res = await app.inject(injectArgs())
+
+    expect(res.statusCode).toBe(200)
+    expect(mockProfileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscription_status: 'active',
+        subscription_cancel_at_period_end: true,
+      }),
+    )
+  })
+
+  it('syncs profile on customer.subscription.created (initial activation)', async () => {
+    // Stripe Checkout fires `created` (not `updated`) on first subscription
+    // activation. Pin that we route both events to the same handler — without
+    // this the user's plan stays 'none' after a successful Checkout.
+    mockConstructEvent.mockReturnValueOnce({
+      id: 'evt_sub_created_1',
+      type: 'customer.subscription.created',
+      data: {
+        object: {
+          id: 'sub_test_2',
+          customer: 'cus_test_456',
+          status: 'active',
+          cancel_at_period_end: false,
+          metadata: {},
+          items: {
+            data: [
+              {
+                id: 'si_test_2',
+                price: { id: 'price_monthly_fake' },
+                current_period_end: 1_800_000_000,
+              },
+            ],
+          },
+        },
+      },
+    })
+    mockProfileMaybeSingle.mockResolvedValueOnce({
+      data: { id: 'user-bbb' },
+      error: null,
+    })
+
+    const app = await buildApp()
+    const res = await app.inject(injectArgs())
+
+    expect(res.statusCode).toBe(200)
+    expect(mockProfileUpdate).toHaveBeenCalledTimes(1)
+    expect(mockProfileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscription_status: 'active',
+        subscription_type: 'monthly',
       }),
     )
   })
@@ -256,6 +345,9 @@ describe('POST /webhooks/stripe', () => {
     expect(mockProfileUpdate).toHaveBeenCalledTimes(1)
     const patch = mockProfileUpdate.mock.calls[0]?.[0] as Record<string, unknown>
     expect(patch['subscription_status']).toBe('canceled')
+    // Period elapsed — clear the cancel_at_period_end flag so stale
+    // "Cancels MMM dd" text doesn't linger on the Free plan UI.
+    expect(patch['subscription_cancel_at_period_end']).toBe(false)
     // Must not touch subscription_expires_at on delete.
     expect(patch).not.toHaveProperty('subscription_expires_at')
   })

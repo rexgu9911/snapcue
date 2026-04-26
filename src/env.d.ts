@@ -10,6 +10,7 @@ type TrayIcon = import('../shared/types').TrayIcon
 type AuthUser = import('../shared/types').AuthUser
 type SignInResult = import('../shared/types').SignInResult
 type CreditsMeta = import('../shared/types').CreditsMeta
+type OpenBillingPortalResult = import('../shared/types').OpenBillingPortalResult
 
 interface SnapCueAPI {
   platform: string
@@ -52,6 +53,7 @@ interface SnapCueAPI {
   openPricing: () => Promise<void>
   openSignin: () => Promise<void>
   closeSignin: () => void
+  openBillingPortal: () => Promise<OpenBillingPortalResult>
   onAuthSignedIn: (cb: (payload: { email: string }) => void) => () => void
   onAuthSignedOut: (cb: () => void) => () => void
 }

@@ -338,6 +338,8 @@ function AccountSection({ user, meta }: { user: AuthUser | null; meta: CreditsMe
 }
 
 function PlanDetails({ meta }: { meta: CreditsMeta | null }) {
+  const [error, setError] = useState<string | null>(null)
+
   if (!meta) return null
 
   const hasActiveSubscription =
@@ -345,17 +347,34 @@ function PlanDetails({ meta }: { meta: CreditsMeta | null }) {
     meta.subscription_expires_at !== null &&
     new Date(meta.subscription_expires_at).getTime() > Date.now()
 
+  async function handleManageSubscription() {
+    setError(null)
+    const result = await window.snapcue.openBillingPortal()
+    if (!result.ok) setError(result.error)
+  }
+
+  function handleGetMoreCredits() {
+    setError(null)
+    void window.snapcue.openPricing()
+  }
+
   if (hasActiveSubscription) {
     const planLabel = meta.subscription_type === 'weekly' ? 'Weekly' : 'Monthly'
-    const renewsLabel = new Date(meta.subscription_expires_at!).toLocaleDateString('en-US', {
+    const dateLabel = new Date(meta.subscription_expires_at!).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     })
+    // After a billing-portal cancel the subscription is still 'active' until
+    // the period ends — but the user has explicitly opted out. Showing
+    // "Renews May 26" here would be misleading; "Cancels May 26" matches
+    // their intent.
+    const dateRowLabel = meta.subscription_cancel_at_period_end ? 'Cancels' : 'Renews'
     return (
       <>
         <InfoRow label="Plan" value={planLabel} />
-        <InfoRow label="Renews" value={renewsLabel} />
-        <ManageLink label="Manage subscription" />
+        <InfoRow label={dateRowLabel} value={dateLabel} />
+        <ManageLink label="Manage subscription" onClick={handleManageSubscription} />
+        {error && <ErrorRow message={error} />}
       </>
     )
   }
@@ -365,8 +384,16 @@ function PlanDetails({ meta }: { meta: CreditsMeta | null }) {
     <>
       <InfoRow label="Plan" value="Free" />
       <InfoRow label="Credits" value={`${credits}`} />
-      <ManageLink label="Get more credits" />
+      <ManageLink label="Get more credits" onClick={handleGetMoreCredits} />
     </>
+  )
+}
+
+function ErrorRow({ message }: { message: string }) {
+  return (
+    <div style={{ textAlign: 'right', paddingTop: '2px' }}>
+      <span style={{ fontSize: '10px', color: 'rgba(248,113,113,0.85)' }}>{message}</span>
+    </div>
   )
 }
 
@@ -381,11 +408,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function ManageLink({ label }: { label: string }) {
+function ManageLink({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <div style={{ textAlign: 'right', paddingTop: '2px' }}>
       <button
-        onClick={() => window.snapcue.openPricing()}
+        onClick={onClick}
         className="transition-colors"
         style={{
           fontSize: '10px',
