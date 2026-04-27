@@ -82,19 +82,21 @@
       "notarize": false
     },
     "dmg": {
+      "background": "build/dmg-background.png",
       "window": {
-        "width": 400,
-        "height": 300
+        "width": 540,
+        "height": 380
       },
-      "iconSize": 80,
+      "iconSize": 100,
+      "iconTextSize": 12,
       "contents": [
         {
-          "x": 110,
-          "y": 150
+          "x": 90,
+          "y": 200
         },
         {
-          "x": 290,
-          "y": 150,
+          "x": 350,
+          "y": 200,
           "type": "link",
           "path": "/Applications"
         }

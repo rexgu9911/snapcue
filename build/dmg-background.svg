@@ -1,0 +1,43 @@
+<svg width="540" height="380" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cream background — matches snapcue.io brand -->
+  <rect width="540" height="380" fill="#f5f1eb"/>
+
+  <!-- Subtle radial glow in upper-center for depth -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="32%" r="62%">
+      <stop offset="0%" stop-color="#fefcf7" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#fefcf7" stop-opacity="0"/>
+    </radialGradient>
+
+  </defs>
+  <rect width="540" height="380" fill="url(#glow)"/>
+
+  <!-- Title -->
+  <text x="270" y="82"
+        font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="30" font-weight="700"
+        text-anchor="middle" fill="#1a1a1a"
+        letter-spacing="-0.6">SnapCue</text>
+
+  <!-- Two-line instruction — explicit so the user knows what to do -->
+  <text x="270" y="118"
+        font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="13" font-weight="500"
+        text-anchor="middle" fill="#666"
+        letter-spacing="0.15">Drag to your Applications folder</text>
+  <text x="270" y="138"
+        font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="13" font-weight="500"
+        text-anchor="middle" fill="#666"
+        letter-spacing="0.15">to install SnapCue</text>
+
+  <!-- Arrow between icons.
+       App icon: x=90, y=200, 100×100 → right edge 190, center y 250
+       Apps icon: x=350, y=200, 100×100 → left edge 350, center y 250
+       Arrow runs from x=210 to x=340 at y=250 (130px long, centered in gap). -->
+  <g fill="none" stroke="#7a7a7a" stroke-opacity="0.55"
+     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="210" y1="250" x2="334" y2="250"/>
+    <polyline points="324,240 342,250 324,260"/>
+  </g>
+</svg>
