@@ -1,4 +1,6 @@
 import { app, BrowserWindow, globalShortcut } from 'electron'
+import { is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import { initTray } from './tray'
 import { initIpc, getSettings, refreshCreditsMeta } from './ipc'
 import { createOnboardingWindow } from './onboarding'
@@ -105,6 +107,19 @@ app.whenReady().then(async () => {
     const url = pendingDeepLink
     pendingDeepLink = null
     handleDeepLink(url)
+  }
+
+  // Auto-update — production only. Defer 5s so the app finishes initializing
+  // before we hit the network. checkForUpdatesAndNotify downloads new versions
+  // in the background and shows a native notification when ready; the user
+  // installs on next quit/relaunch. Errors are logged but never surfaced —
+  // a transient network blip shouldn't pop a dialog at users.
+  if (!is.dev) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+        console.warn('[SnapCue] Update check failed:', err?.message ?? err)
+      })
+    }, 5000)
   }
 })
 
