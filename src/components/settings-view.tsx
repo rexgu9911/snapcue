@@ -9,14 +9,19 @@ interface SettingsViewProps {
 
 type RecordingField = 'silentCapture' | 'regionSelect' | 'toggleDropdown' | null
 
-/** Format Electron accelerator string for display: Control+Alt+S → ⌃⌥S */
-function formatShortcut(accel: string): string {
-  return accel
-    .replace(/Control\+/g, '⌃')
-    .replace(/Alt\+/g, '⌥')
-    .replace(/Shift\+/g, '⇧')
-    .replace(/Command\+/g, '⌘')
-    .replace(/Meta\+/g, '⌘')
+/** Map Electron modifier names → mac symbols for keycap rendering. */
+const MOD_SYMBOL: Record<string, string> = {
+  Control: '⌃',
+  Alt: '⌥',
+  Shift: '⇧',
+  Command: '⌘',
+  Meta: '⌘',
+}
+
+/** Parse "Control+Alt+S" → ["⌃", "⌥", "S"] for individual keycap rendering. */
+function acceleratorSymbols(accel: string): string[] {
+  if (!accel) return []
+  return accel.split('+').map((part) => MOD_SYMBOL[part] ?? part)
 }
 
 /** Convert a KeyboardEvent into an Electron accelerator string */
@@ -167,16 +172,31 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
       {/* Shortcuts section */}
       <div style={{ padding: '4px 10px 4px' }}>
         <div
+          className="flex items-baseline justify-between"
           style={{
-            fontSize: '11px',
-            letterSpacing: '0.5px',
-            color: 'rgba(255,255,255,0.3)',
             marginTop: '8px',
-            marginBottom: '4px',
-            textTransform: 'uppercase' as const,
+            marginBottom: '6px',
           }}
         >
-          Shortcuts
+          <span
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.5px',
+              color: 'rgba(255,255,255,0.3)',
+              textTransform: 'uppercase' as const,
+            }}
+          >
+            Shortcuts
+          </span>
+          <span
+            style={{
+              fontSize: '9px',
+              color: 'rgba(255,255,255,0.25)',
+              letterSpacing: '0.02em',
+            }}
+          >
+            click to change
+          </span>
         </div>
         <ShortcutRow
           label="Silent capture"
@@ -212,28 +232,46 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
             letterSpacing: '0.5px',
             color: 'rgba(255,255,255,0.3)',
             marginTop: '8px',
-            marginBottom: '4px',
+            marginBottom: '6px',
             textTransform: 'uppercase' as const,
           }}
         >
           Icon
         </div>
-        <div className="flex flex-wrap" style={{ gap: '4px' }}>
-          {ICON_OPTIONS.map((icon) => (
-            <button
-              key={icon}
-              onClick={() => handleIconChange(icon)}
-              className="flex items-center justify-center"
-              style={{
-                width: '32px',
-                height: '26px',
-                borderRadius: '5px',
-                background: trayIcon === icon ? 'rgba(255,255,255,0.08)' : 'transparent',
-              }}
-            >
-              <IconPreview icon={icon} />
-            </button>
-          ))}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '4px',
+          }}
+        >
+          {ICON_OPTIONS.map((icon) => {
+            const isSelected = trayIcon === icon
+            return (
+              <button
+                key={icon}
+                onClick={() => handleIconChange(icon)}
+                className="flex items-center justify-center"
+                style={{
+                  height: '30px',
+                  borderRadius: '6px',
+                  background: isSelected ? 'rgba(255,255,255,0.10)' : 'transparent',
+                  border: isSelected
+                    ? '0.5px solid rgba(255,255,255,0.14)'
+                    : '0.5px solid transparent',
+                  transition: 'background 0.15s, border-color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                <IconPreview icon={icon} />
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -259,13 +297,6 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
   )
 }
 
-function truncateEmail(email: string): string {
-  const [local, domain] = email.split('@')
-  if (!domain) return email
-  if (local.length <= 8) return email
-  return `${local.slice(0, 8)}...@${domain}`
-}
-
 function AccountSection({ user, meta }: { user: AuthUser | null; meta: CreditsMeta | null }) {
   return (
     <div style={{ padding: '4px 10px 4px' }}>
@@ -288,19 +319,26 @@ function AccountSection({ user, meta }: { user: AuthUser | null; meta: CreditsMe
             className="flex items-center justify-between"
             style={{ padding: '3px 0', gap: '8px' }}
           >
-            <span
+            <div
               title={user.email}
+              className="flex items-center justify-center"
               style={{
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.08)',
+                border: '0.5px solid rgba(255,255,255,0.06)',
                 fontSize: '11px',
-                color: 'rgba(255,255,255,0.6)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flex: 1,
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.7)',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+                cursor: 'default',
+                flexShrink: 0,
               }}
             >
-              {truncateEmail(user.email)}
-            </span>
+              {user.email.charAt(0)}
+            </div>
             <button
               onClick={() => window.snapcue.signOut()}
               style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}
@@ -430,6 +468,56 @@ function ManageLink({ label, onClick }: { label: string; onClick: () => void }) 
   )
 }
 
+type CapState = 'idle' | 'hover' | 'conflict' | 'saved'
+
+function MiniKeyCap({ symbol, state }: { symbol: string; state: CapState }) {
+  const bg = {
+    idle: 'rgba(255,255,255,0.06)',
+    hover: 'rgba(255,255,255,0.11)',
+    conflict: 'rgba(239,68,68,0.22)',
+    saved: 'rgba(34,197,94,0.20)',
+  }[state]
+
+  const borderTop = {
+    idle: 'rgba(255,255,255,0.14)',
+    hover: 'rgba(255,255,255,0.20)',
+    conflict: 'rgba(239,68,68,0.35)',
+    saved: 'rgba(34,197,94,0.30)',
+  }[state]
+
+  const border = {
+    idle: 'rgba(255,255,255,0.08)',
+    hover: 'rgba(255,255,255,0.14)',
+    conflict: 'rgba(239,68,68,0.30)',
+    saved: 'rgba(34,197,94,0.26)',
+  }[state]
+
+  return (
+    <span
+      className="font-mono"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: '18px',
+        height: '20px',
+        padding: '0 4px',
+        borderRadius: '4px',
+        background: bg,
+        border: `0.5px solid ${border}`,
+        borderTop: `0.5px solid ${borderTop}`,
+        fontSize: '11px',
+        fontWeight: 500,
+        color: 'rgba(255,255,255,0.7)',
+        lineHeight: 1,
+        transition: 'background 0.18s, border-color 0.18s',
+      }}
+    >
+      {symbol}
+    </span>
+  )
+}
+
 function ShortcutRow({
   label,
   value,
@@ -445,11 +533,16 @@ function ShortcutRow({
   isSaved: boolean
   onStartRecording: () => void
 }) {
-  const pillBg = isConflict
-    ? 'rgba(239,68,68,0.3)'
+  const [hovered, setHovered] = useState(false)
+  const capState: CapState = isConflict
+    ? 'conflict'
     : isSaved
-      ? 'rgba(34,197,94,0.2)'
-      : 'rgba(255,255,255,0.06)'
+      ? 'saved'
+      : hovered && !isRecording
+        ? 'hover'
+        : 'idle'
+
+  const symbols = acceleratorSymbols(value)
 
   return (
     <div>
@@ -457,18 +550,36 @@ function ShortcutRow({
         <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
         <button
           onClick={onStartRecording}
-          className="font-mono"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          aria-label={`Change ${label} shortcut`}
           style={{
-            fontSize: '11px',
-            color: 'rgba(255,255,255,0.4)',
-            background: pillBg,
-            padding: '2px 8px',
-            borderRadius: '4px',
-            transition: 'background 0.2s',
-            animation: isRecording ? 'blink 1s ease-in-out infinite' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            padding: '2px 0',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
           }}
         >
-          {isRecording ? 'press keys...' : formatShortcut(value)}
+          {isRecording ? (
+            <span
+              className="font-mono"
+              style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.55)',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: 'rgba(255,255,255,0.06)',
+                animation: 'blink 1s ease-in-out infinite',
+              }}
+            >
+              press keys...
+            </span>
+          ) : (
+            symbols.map((sym, i) => <MiniKeyCap key={i} symbol={sym} state={capState} />)
+          )}
         </button>
       </div>
       {isConflict && (

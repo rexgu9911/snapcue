@@ -139,7 +139,5 @@ export async function captureScreenshot(mode: 'silent' | 'region'): Promise<stri
  * Uses Electron's systemPreferences API which queries the TCC database directly.
  */
 export function checkScreenRecordingPermission(): boolean {
-  const status = systemPreferences.getMediaAccessStatus('screen')
-  console.log('[SnapCue] Screen recording permission status:', status)
-  return status === 'granted'
+  return systemPreferences.getMediaAccessStatus('screen') === 'granted'
 }

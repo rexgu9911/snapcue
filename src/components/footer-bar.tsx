@@ -2,9 +2,20 @@ interface FooterBarProps {
   onOpenSettings: () => void
   user: AuthUser | null
   meta: CreditsMeta | null
+  /**
+   * True before the user's first successful capture. Surfaces the Settings
+   * button with a visible "Settings" label + brighter gear so first-time
+   * users can find it; returning users see a minimal icon-only gear.
+   */
+  firstUse?: boolean
 }
 
-export function FooterBar({ onOpenSettings, user, meta }: FooterBarProps) {
+export function FooterBar({ onOpenSettings, user, meta, firstUse = false }: FooterBarProps) {
+  const gearIdleAlpha = firstUse ? 0.5 : 0.25
+  const gearHoverAlpha = firstUse ? 0.75 : 0.5
+  const gearIdleColor = `rgba(255,255,255,${gearIdleAlpha})`
+  const gearHoverColor = `rgba(255,255,255,${gearHoverAlpha})`
+
   return (
     <div
       className="flex shrink-0 items-center justify-between"
@@ -20,16 +31,20 @@ export function FooterBar({ onOpenSettings, user, meta }: FooterBarProps) {
       <div className="flex items-center" style={{ gap: '8px' }}>
         <button
           onClick={onOpenSettings}
-          className="flex items-center justify-center"
-          style={{ width: '16px', height: '16px' }}
+          className="flex items-center"
+          style={{ gap: '4px' }}
           aria-label="Settings"
           onMouseEnter={(e) => {
             const svg = e.currentTarget.querySelector('svg')
-            if (svg) svg.style.color = 'rgba(255,255,255,0.5)'
+            if (svg) svg.style.color = gearHoverColor
+            const span = e.currentTarget.querySelector('span')
+            if (span) span.style.color = gearHoverColor
           }}
           onMouseLeave={(e) => {
             const svg = e.currentTarget.querySelector('svg')
-            if (svg) svg.style.color = 'rgba(255,255,255,0.25)'
+            if (svg) svg.style.color = gearIdleColor
+            const span = e.currentTarget.querySelector('span')
+            if (span) span.style.color = gearIdleColor
           }}
         >
           <svg
@@ -37,7 +52,7 @@ export function FooterBar({ onOpenSettings, user, meta }: FooterBarProps) {
             height="13"
             viewBox="0 0 20 20"
             fill="none"
-            style={{ color: 'rgba(255,255,255,0.25)', transition: 'color 0.15s' }}
+            style={{ color: gearIdleColor, transition: 'color 0.15s' }}
           >
             <path
               d="M8.5 2.5a1.5 1.5 0 0 1 3 0v.3a1.2 1.2 0 0 0 .8 1.13 1.2 1.2 0 0 0 1.36-.27l.21-.21a1.5 1.5 0 1 1 2.12 2.12l-.21.21a1.2 1.2 0 0 0-.27 1.36 1.2 1.2 0 0 0 1.13.8h.3a1.5 1.5 0 0 1 0 3h-.3a1.2 1.2 0 0 0-1.13.8 1.2 1.2 0 0 0 .27 1.36l.21.21a1.5 1.5 0 1 1-2.12 2.12l-.21-.21a1.2 1.2 0 0 0-1.36-.27 1.2 1.2 0 0 0-.8 1.13v.3a1.5 1.5 0 0 1-3 0v-.3a1.2 1.2 0 0 0-.8-1.13 1.2 1.2 0 0 0-1.36.27l-.21.21a1.5 1.5 0 1 1-2.12-2.12l.21-.21a1.2 1.2 0 0 0 .27-1.36 1.2 1.2 0 0 0-1.13-.8h-.3a1.5 1.5 0 0 1 0-3h.3a1.2 1.2 0 0 0 1.13-.8 1.2 1.2 0 0 0-.27-1.36l-.21-.21a1.5 1.5 0 1 1 2.12-2.12l.21.21a1.2 1.2 0 0 0 1.36.27 1.2 1.2 0 0 0 .8-1.13V2.5Z"
@@ -47,6 +62,18 @@ export function FooterBar({ onOpenSettings, user, meta }: FooterBarProps) {
             />
             <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
           </svg>
+          {firstUse && (
+            <span
+              style={{
+                fontSize: '11px',
+                color: gearIdleColor,
+                transition: 'color 0.15s',
+                lineHeight: 1,
+              }}
+            >
+              Settings
+            </span>
+          )}
         </button>
 
         {user && (

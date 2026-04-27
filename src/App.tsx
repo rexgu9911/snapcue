@@ -10,14 +10,25 @@ import { LoadingView } from './components/loading-view'
 type Status = 'ready' | 'loading' | 'result' | 'error' | 'no-permission'
 type View = 'main' | 'settings'
 
+/** Format Electron accelerator string for display: "Control+Alt+A" → "⌃⌥A" */
+function formatShortcut(accel: string): string {
+  return accel
+    .replace(/Control\+/g, '⌃')
+    .replace(/Alt\+/g, '⌥')
+    .replace(/Shift\+/g, '⇧')
+    .replace(/Command\+/g, '⌘')
+    .replace(/Meta\+/g, '⌘')
+}
+
 interface ErrorPanelProps {
   error: CaptureError
   meta: CreditsMeta | null
+  regionShortcut: string
   onOpenSettings: () => void
   onDismiss: () => void
 }
 
-function ErrorPanel({ error, meta, onOpenSettings, onDismiss }: ErrorPanelProps) {
+function ErrorPanel({ error, meta, regionShortcut, onOpenSettings, onDismiss }: ErrorPanelProps) {
   if (error.type === 'auth_required') {
     return (
       <div style={{ padding: '10px 12px' }}>
@@ -37,7 +48,7 @@ function ErrorPanel({ error, meta, onOpenSettings, onDismiss }: ErrorPanelProps)
             marginBottom: '10px',
           }}
         >
-          Magic link · no password
+          6-digit code · no password
         </p>
         <button
           onClick={() => window.snapcue.openSignin()}
@@ -174,7 +185,7 @@ function ErrorPanel({ error, meta, onOpenSettings, onDismiss }: ErrorPanelProps)
         </button>
       ) : error.type === 'no_questions' ? (
         <p style={{ marginTop: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-          try ⌃⌥A to select the question area
+          try {regionShortcut} to select the question area
         </p>
       ) : null}
     </div>
@@ -187,6 +198,7 @@ export function App() {
   const [answers, setAnswers] = useState<AnswerItem[]>([])
   const [view, setView] = useState<View>('main')
   const [hasFirstCapture, setHasFirstCapture] = useState(false)
+  const [regionAccel, setRegionAccel] = useState('Control+Alt+A')
   const [user, setUser] = useState<AuthUser | null>(null)
   const [meta, setMeta] = useState<CreditsMeta | null>(null)
   const containerRef = useAutoHeight<HTMLDivElement>()
@@ -194,10 +206,13 @@ export function App() {
   useEffect(() => {
     window.snapcue.getSettings().then((s) => {
       setHasFirstCapture(!!s.hasFirstCapture)
+      setRegionAccel(s.hotkeys.regionSelect)
     })
     window.snapcue.getCurrentUser().then(setUser)
     window.snapcue.getCreditsMeta().then(setMeta)
   }, [])
+
+  const regionShortcut = formatShortcut(regionAccel)
 
   useEffect(() => {
     const unsubs = [
@@ -292,12 +307,15 @@ export function App() {
 
             {status === 'loading' && <LoadingView />}
 
-            {status === 'result' && <AnswerPanel answers={answers} />}
+            {status === 'result' && (
+              <AnswerPanel answers={answers} regionShortcut={regionShortcut} />
+            )}
 
             {status === 'error' && error && (
               <ErrorPanel
                 error={error}
                 meta={meta}
+                regionShortcut={regionShortcut}
                 onOpenSettings={() => setView('settings')}
                 onDismiss={() => {
                   setStatus('ready')
@@ -311,7 +329,12 @@ export function App() {
 
       {/* Footer — only on main view */}
       {view !== 'settings' && (
-        <FooterBar onOpenSettings={() => setView('settings')} user={user} meta={meta} />
+        <FooterBar
+          onOpenSettings={() => setView('settings')}
+          user={user}
+          meta={meta}
+          firstUse={!hasFirstCapture}
+        />
       )}
     </div>
   )

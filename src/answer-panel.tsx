@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 interface AnswerPanelProps {
   answers: AnswerItem[]
+  regionShortcut: string
 }
 
 const DOT_COLOR: Record<string, string> = {
@@ -10,7 +11,7 @@ const DOT_COLOR: Record<string, string> = {
   low: 'bg-red-400',
 }
 
-export function AnswerPanel({ answers }: AnswerPanelProps) {
+export function AnswerPanel({ answers, regionShortcut }: AnswerPanelProps) {
   const [expandedQ, setExpandedQ] = useState<number | null>(null)
 
   if (answers.length === 0) {
@@ -19,7 +20,6 @@ export function AnswerPanel({ answers }: AnswerPanelProps) {
         <p style={{ fontSize: '11px', lineHeight: 1.45, color: 'rgba(255,255,255,0.35)' }}>
           no questions detected
         </p>
-        {/* TODO: read regionSelect shortcut from settings instead of hardcoding */}
         <p
           className="font-mono"
           style={{
@@ -29,7 +29,7 @@ export function AnswerPanel({ answers }: AnswerPanelProps) {
             marginTop: '4px',
           }}
         >
-          try ⌃⌥A to select the question area
+          try {regionShortcut} to select the question area
         </p>
       </div>
     )

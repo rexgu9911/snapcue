@@ -60,7 +60,7 @@ export function SignInView() {
               lineHeight: 1.5,
             }}
           >
-            We&apos;ll email you a magic link. No password needed.
+            We&apos;ll email you a 6-digit code. No password needed.
           </p>
         </div>
 

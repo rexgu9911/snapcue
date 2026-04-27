@@ -116,7 +116,7 @@ export function IdleView({ user, hasFirstCapture }: IdleViewProps) {
             marginBottom: '10px',
           }}
         >
-          Magic link · no password
+          6-digit code · no password
         </span>
         <button
           onClick={() => window.snapcue.openSignin()}
@@ -138,44 +138,41 @@ export function IdleView({ user, hasFirstCapture }: IdleViewProps) {
     )
   }
 
-  if (!hasFirstCapture) {
-    return (
-      <div className="flex flex-col items-center" style={{ padding: '16px 12px' }}>
-        <span
-          style={{
-            fontSize: '13px',
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.6)',
-            marginBottom: '6px',
-          }}
-        >
-          ready to go
-        </span>
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-          open a question and press {formatShortcut(regionAccel)}
-        </span>
-      </div>
-    )
-  }
-
   const regionKeys = parseAccelerator(regionAccel)
 
   return (
     <div className="flex flex-col items-center" style={{ padding: '16px 12px' }}>
-      {/* Decorative dots */}
-      <div className="flex" style={{ gap: '6px', marginBottom: '14px' }}>
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            style={{
-              width: '5px',
-              height: '5px',
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.15)',
-            }}
-          />
-        ))}
-      </div>
+      {/* Top decoration: first-use shows a teaching header so the user knows
+          what to do; returning users see decorative dots for breathing room.
+          Both occupy roughly the same vertical space so the layout doesn't
+          shift between the two states. */}
+      {hasFirstCapture ? (
+        <div className="flex" style={{ gap: '6px', marginBottom: '14px' }}>
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              style={{
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.15)',
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.45)',
+            letterSpacing: '0.01em',
+            marginBottom: '12px',
+          }}
+        >
+          Try your first capture
+        </span>
+      )}
 
       {/* Main shortcut — key caps */}
       <div className="flex" style={{ gap: '3px' }}>
