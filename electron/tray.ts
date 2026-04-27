@@ -1,14 +1,16 @@
-import { app, BrowserWindow, Tray, screen, ipcMain } from 'electron'
+import { app, BrowserWindow, Tray, screen, ipcMain, type Rectangle } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { IPC, type MainToRendererEvents, type TrayIcon } from '../shared/types'
 import { getTrayIcon, getAnalyzingIcon } from './tray-icons'
+import { hideMenuBarCoachmark } from './coachmark'
 
 let tray: Tray | null = null
 let dropdown: BrowserWindow | null = null
 let lastHideTime = 0
 let currentIconName: TrayIcon = 'dot'
 let doneTimer: ReturnType<typeof setTimeout> | null = null
+let pulseTimer: ReturnType<typeof setInterval> | null = null
 let onShowCallback: (() => void) | null = null
 
 /** Register a callback to run every time the dropdown becomes visible. */
@@ -27,6 +29,10 @@ async function createTrayWithIcon(iconName: TrayIcon): Promise<Tray> {
   newTray.setToolTip('SnapCue')
 
   newTray.on('click', () => {
+    // Always dismiss the post-onboarding coachmark when the user discovers
+    // the tray icon — its job is done the moment the user interacts.
+    hideMenuBarCoachmark()
+
     if (!dropdown) return
 
     // Prevent re-show when the click that caused blur also triggers tray click
@@ -49,7 +55,51 @@ export async function updateTrayIcon(name: TrayIcon): Promise<void> {
   tray.setImage(icon)
 }
 
+/** Screen-space bounds of the tray icon, or null if the tray isn't ready. */
+export function getTrayBounds(): Rectangle | null {
+  return tray ? tray.getBounds() : null
+}
+
 const DONE_DURATION_MS = 3_000
+
+/**
+ * Briefly pulse the tray icon to draw the user's eye to the menu bar.
+ * Used right after onboarding completes so users discover where SnapCue lives.
+ * Alternates dimmed ↔ normal 3 times (~2.4s total). Replay-safe: a second
+ * call cancels the in-flight pulse and restarts.
+ */
+export async function pulseTrayIcon(): Promise<void> {
+  if (!tray) return
+
+  if (pulseTimer) {
+    clearInterval(pulseTimer)
+    pulseTimer = null
+  }
+
+  const normal = await getTrayIcon(currentIconName)
+  const dimmed = await getAnalyzingIcon(currentIconName)
+
+  let step = 0
+  const TOTAL_STEPS = 6
+  const INTERVAL_MS = 400
+
+  pulseTimer = setInterval(() => {
+    if (!tray) {
+      if (pulseTimer) clearInterval(pulseTimer)
+      pulseTimer = null
+      return
+    }
+
+    tray.setImage(step % 2 === 0 ? dimmed : normal)
+    step++
+
+    if (step >= TOTAL_STEPS) {
+      if (pulseTimer) clearInterval(pulseTimer)
+      pulseTimer = null
+      tray.setImage(normal)
+    }
+  }, INTERVAL_MS)
+}
 
 export async function setTrayState(state: 'idle' | 'analyzing' | 'done'): Promise<void> {
   if (!tray) return
@@ -191,6 +241,10 @@ export async function initTray(iconName: TrayIcon = 'dot'): Promise<void> {
 
   // Cleanup
   app.on('before-quit', () => {
+    if (pulseTimer) {
+      clearInterval(pulseTimer)
+      pulseTimer = null
+    }
     tray?.destroy()
     tray = null
     dropdown?.destroy()

@@ -119,6 +119,7 @@ export interface RendererToMainEvents {
   'dropdown:hide': void
   'dropdown:resize': number
   'auth:closeSignin': void
+  'coachmark:dismiss': void
 }
 
 /**
@@ -144,6 +145,7 @@ export interface RendererToMainCommands {
   'auth:openBillingPortal': { args: void; return: OpenBillingPortalResult }
   'credits:get': { args: void; return: CreditsMeta | null }
   'credits:refresh': { args: void; return: CreditsMeta | null }
+  'tray:pulse': { args: void; return: void }
 }
 
 // ── Channel name constants (prevents typos) ──────────────────────────────────
@@ -162,6 +164,7 @@ export const IPC = {
   DROPDOWN_HIDE: 'dropdown:hide',
   DROPDOWN_RESIZE: 'dropdown:resize',
   AUTH_CLOSE_SIGNIN: 'auth:closeSignin',
+  COACHMARK_DISMISS: 'coachmark:dismiss',
 
   // Renderer → Main (invoke)
   CAPTURE_START: 'capture:start',
@@ -182,4 +185,5 @@ export const IPC = {
   AUTH_OPEN_BILLING_PORTAL: 'auth:openBillingPortal',
   CREDITS_GET: 'credits:get',
   CREDITS_REFRESH: 'credits:refresh',
+  TRAY_PULSE: 'tray:pulse',
 } as const

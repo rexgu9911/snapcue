@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('snapcue', {
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   completeOnboarding: () => ipcRenderer.invoke(IPC.ONBOARDING_COMPLETE),
+  pulseTrayIcon: () => ipcRenderer.invoke(IPC.TRAY_PULSE) as Promise<void>,
+  dismissCoachmark: () => ipcRenderer.send(IPC.COACHMARK_DISMISS),
 
   // ── Auth ────────────────────────────────────────────────────────────────
   getCurrentUser: () => ipcRenderer.invoke(IPC.AUTH_GET_CURRENT_USER) as Promise<AuthUser | null>,

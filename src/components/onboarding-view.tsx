@@ -2,17 +2,29 @@ import { useEffect, useState } from 'react'
 import logoWhite from '../assets/logo-white.png'
 import { SignInForm } from './signin-form'
 
-type Page = 0 | 1 | 2 | 3
+type Page = 0 | 1 | 2 | 3 | 4
 
 export function OnboardingView() {
   const [page, setPage] = useState<Page>(0)
 
-  // Auto-complete onboarding when the magic-link deep link finalizes sign-in.
+  // After sign-in finalizes (deep-link or in-page OTP), advance to the
+  // Shortcuts teaching page so the user gets the natural learning sequence
+  // (signed in → learn shortcut → see menu-bar location → try it). Without
+  // this, sign-in would just close the window and the user wouldn't know
+  // where SnapCue lives or how to use it.
   useEffect(() => {
     return window.snapcue.onAuthSignedIn(() => {
-      window.snapcue.completeOnboarding()
+      setPage(3)
     })
   }, [])
+
+  async function finishOnboarding(): Promise<void> {
+    // Pulse the tray icon so the user sees where SnapCue lives the moment
+    // the window closes. Fire-and-forget — pulse runs in the main process
+    // and continues regardless of the renderer's lifecycle.
+    void window.snapcue.pulseTrayIcon()
+    await window.snapcue.completeOnboarding()
+  }
 
   return (
     <div
@@ -39,9 +51,10 @@ export function OnboardingView() {
         style={{ padding: '0 28px', animation: 'fadeIn 150ms ease', minHeight: 0 }}
       >
         {page === 0 && <WelcomeContent />}
-        {page === 1 && <ShortcutsContent onBack={() => setPage(0)} />}
-        {page === 2 && <PermissionContent onBack={() => setPage(1)} />}
-        {page === 3 && <SignInContent onBack={() => setPage(2)} />}
+        {page === 1 && <PermissionContent onBack={() => setPage(0)} />}
+        {page === 2 && <SignInContent onBack={() => setPage(1)} />}
+        {page === 3 && <ShortcutsContent onBack={() => setPage(2)} />}
+        {page === 4 && <AppHereContent />}
       </div>
 
       {/* Fixed bottom: button + dots — same position on all pages */}
@@ -52,16 +65,8 @@ export function OnboardingView() {
           </OnboardingButton>
         )}
         {page === 1 && (
-          <>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginBottom: '12px' }}>
-              change shortcuts in settings
-            </p>
-            <OnboardingButton onClick={() => setPage(2)}>Continue</OnboardingButton>
-          </>
-        )}
-        {page === 2 && (
           <button
-            onClick={() => setPage(3)}
+            onClick={() => setPage(2)}
             className="transition-colors duration-200"
             style={{
               fontSize: '12px',
@@ -85,9 +90,9 @@ export function OnboardingView() {
             Continue →
           </button>
         )}
-        {page === 3 && (
+        {page === 2 && (
           <button
-            onClick={() => window.snapcue.completeOnboarding()}
+            onClick={() => setPage(3)}
             className="transition-colors duration-200"
             style={{
               fontSize: '12px',
@@ -104,6 +109,19 @@ export function OnboardingView() {
             Skip for now
           </button>
         )}
+        {page === 3 && (
+          <>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginBottom: '12px' }}>
+              change shortcuts in settings
+            </p>
+            <OnboardingButton onClick={() => setPage(4)}>Continue</OnboardingButton>
+          </>
+        )}
+        {page === 4 && (
+          <OnboardingButton onClick={() => void finishOnboarding()} wide>
+            Try it now
+          </OnboardingButton>
+        )}
         <PageDots current={page} />
       </div>
     </div>
@@ -118,7 +136,7 @@ function PageDots({ current }: { current: number }) {
       className="flex items-center justify-center gap-[8px]"
       style={{ paddingTop: '14px', paddingBottom: '10px' }}
     >
-      {[0, 1, 2, 3].map((i) => (
+      {[0, 1, 2, 3, 4].map((i) => (
         <div
           key={i}
           className="rounded-full transition-colors duration-300"
@@ -135,6 +153,8 @@ function PageDots({ current }: { current: number }) {
 }
 
 // ── Page 1: Welcome ──────────────────────────────────────────────────────────
+// (Note: pages are 0-indexed in code; the section headers count from 1 for
+// human readability — page 0 = the first page, "Page 1: Welcome".)
 
 const ONB_ANIM = '6s cubic-bezier(0.4, 0, 0.2, 1) infinite'
 
@@ -162,7 +182,7 @@ function WelcomeContent() {
             marginTop: '6px',
           }}
         >
-          Screenshot the hard part. The shortcut to every answer.
+          Welcome. Let&apos;s get you set up.
         </p>
       </div>
 
@@ -421,219 +441,7 @@ function WelcomeContent() {
   )
 }
 
-// ── Page 2: Shortcuts (animated keyboard) ───────────────────────────────────
-
-const KEY_GAP = 4
-const KEY_H = 42
-const LETTER_W = 48
-
-interface KeyDef {
-  id: string
-  width: number
-  symbol?: string
-  label: string
-  shiftLayout?: boolean
-}
-
-const KEYBOARD_ROWS: KeyDef[][] = [
-  [
-    { id: 'tab', width: 64, label: 'tab' },
-    { id: 'Q', width: LETTER_W, label: 'Q' },
-    { id: 'W', width: LETTER_W, label: 'W' },
-    { id: 'E', width: LETTER_W, label: 'E' },
-  ],
-  [
-    { id: 'caps', width: 72, label: 'caps lock' },
-    { id: 'A', width: LETTER_W, label: 'A' },
-    { id: 'S', width: LETTER_W, label: 'S' },
-    { id: 'D', width: LETTER_W, label: 'D' },
-  ],
-  [
-    { id: 'shift', width: 88, label: 'shift', symbol: '\u21E7', shiftLayout: true },
-    { id: 'Z', width: LETTER_W, label: 'Z' },
-    { id: 'X', width: LETTER_W, label: 'X' },
-  ],
-  [
-    { id: 'fn', width: 42, label: 'fn' },
-    { id: 'control', width: 52, label: 'control', symbol: '\u2303' },
-    { id: 'option', width: 52, label: 'option', symbol: '\u2325' },
-    { id: 'command', width: 60, label: 'command', symbol: '\u2318' },
-  ],
-]
-
-const SHORTCUTS = [
-  {
-    title: 'area select',
-    desc: 'drag to select any region',
-    combo: '\u2303  \u2325  A',
-    keys: ['control', 'option', 'A'],
-  },
-  {
-    title: 'silent capture',
-    desc: 'captures your current window',
-    combo: '\u2303  \u2325  S',
-    keys: ['control', 'option', 'S'],
-  },
-] as const
-
-function ShortcutsContent({ onBack }: { onBack: () => void }) {
-  const [group, setGroup] = useState(0)
-  const [pressed, setPressed] = useState<Set<string>>(new Set())
-  const [textVisible, setTextVisible] = useState(true)
-
-  useEffect(() => {
-    const CYCLE = 8000
-    const HALF = CYCLE / 2
-
-    let activeTimers: ReturnType<typeof setTimeout>[] = []
-
-    function runHalf(g: number) {
-      setGroup(g)
-      setTextVisible(true)
-
-      const keys = SHORTCUTS[g].keys
-      activeTimers.push(
-        setTimeout(() => setPressed(new Set([keys[0]])), 0),
-        setTimeout(() => setPressed(new Set([keys[0], keys[1]])), 150),
-        setTimeout(() => setPressed(new Set([keys[0], keys[1], keys[2]])), 300),
-        setTimeout(() => setPressed(new Set()), 2000),
-        setTimeout(() => setTextVisible(false), 3400),
-      )
-    }
-
-    function startCycle() {
-      activeTimers.forEach(clearTimeout)
-      activeTimers = []
-      runHalf(0)
-      activeTimers.push(setTimeout(() => runHalf(1), HALF))
-    }
-
-    startCycle()
-    const interval = setInterval(startCycle, CYCLE)
-
-    return () => {
-      clearInterval(interval)
-      activeTimers.forEach(clearTimeout)
-    }
-  }, [])
-
-  const current = SHORTCUTS[group]
-
-  return (
-    <>
-      <BackButton onClick={onBack} />
-
-      {/* Main content — left text + right keyboard */}
-      <div
-        className="flex flex-1 items-center justify-center"
-        style={{ gap: '36px', padding: '0 4px', minHeight: 0 }}
-      >
-        {/* Left: shortcut combo + title + description */}
-        <div
-          style={{
-            flexShrink: 0,
-            width: '150px',
-            opacity: textVisible ? 1 : 0,
-            transition: 'opacity 200ms ease',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '20px',
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'rgba(255,255,255,0.7)',
-              marginBottom: '8px',
-            }}
-          >
-            {current.combo}
-          </div>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-            {current.title}
-          </div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>
-            {current.desc}
-          </div>
-        </div>
-
-        {/* Right: keyboard visualization */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: `${KEY_GAP}px`,
-            transform: 'scale(0.88)',
-            transformOrigin: 'center center',
-          }}
-        >
-          {KEYBOARD_ROWS.map((row, ri) => (
-            <div key={ri} style={{ display: 'flex', gap: `${KEY_GAP}px` }}>
-              {row.map((key) => {
-                const isPressed = pressed.has(key.id)
-                const isModifier = key.symbol && !key.shiftLayout
-                return (
-                  <div
-                    key={key.id}
-                    style={{
-                      width: `${key.width}px`,
-                      height: `${KEY_H}px`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: key.shiftLayout ? 'flex-start' : 'center',
-                      flexDirection: isModifier ? 'column' : 'row',
-                      gap: isModifier ? '2px' : key.shiftLayout ? '4px' : undefined,
-                      paddingLeft: key.shiftLayout ? '10px' : undefined,
-                      borderRadius: '8px',
-                      fontFamily: 'monospace',
-                      background: isPressed ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
-                      borderTop: isPressed
-                        ? '1px solid rgba(255,255,255,0.4)'
-                        : '1px solid rgba(255,255,255,0.08)',
-                      borderLeft: `1px solid ${isPressed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                      borderRight: `1px solid ${isPressed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                      borderBottom: `1px solid ${isPressed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.03)'}`,
-                      boxShadow: isPressed ? 'none' : '0 1px 2px rgba(0,0,0,0.3)',
-                      color: isPressed ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)',
-                      transform: isPressed ? 'scale(0.92)' : 'scale(1)',
-                      transition: 'all 150ms ease-out',
-                    }}
-                  >
-                    {isModifier && (
-                      <>
-                        <span style={{ fontSize: '12px', lineHeight: 1 }}>{key.symbol}</span>
-                        <span
-                          style={{
-                            fontSize: key.id === 'command' ? '8px' : '9px',
-                            lineHeight: 1,
-                          }}
-                        >
-                          {key.label}
-                        </span>
-                      </>
-                    )}
-                    {key.shiftLayout && (
-                      <>
-                        <span style={{ fontSize: '12px', lineHeight: 1 }}>{key.symbol}</span>
-                        <span style={{ fontSize: '10px', lineHeight: 1 }}>{key.label}</span>
-                      </>
-                    )}
-                    {!key.symbol && (
-                      <span style={{ fontSize: key.id.length === 1 ? '14px' : '10px' }}>
-                        {key.label}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ── Page 3: Permission ───────────────────────────────────────────────────────
+// ── Page 2: Permission ───────────────────────────────────────────────────────
 // Always show guidance — no detection. First-time users never have permission,
 // and macOS 15 makes detection unreliable anyway. The dropdown's permission-guide
 // handles the case where the user skips this step.
@@ -854,7 +662,7 @@ function PermissionContent({ onBack }: { onBack: () => void }) {
   )
 }
 
-// ── Page 4: Sign In ──────────────────────────────────────────────────────────
+// ── Page 3: Sign In ──────────────────────────────────────────────────────────
 
 function SignInContent({ onBack }: { onBack: () => void }) {
   return (
@@ -883,13 +691,379 @@ function SignInContent({ onBack }: { onBack: () => void }) {
               lineHeight: 1.5,
             }}
           >
-            We&apos;ll email you a magic link. No password needed.
+            We&apos;ll email you a 6-digit code. No password needed.
           </p>
         </div>
 
         <SignInForm />
       </div>
     </>
+  )
+}
+
+// ── Page 4: Shortcuts (animated keyboard) ───────────────────────────────────
+
+const KEY_GAP = 4
+const KEY_H = 42
+const LETTER_W = 48
+
+interface KeyDef {
+  id: string
+  width: number
+  symbol?: string
+  label: string
+  shiftLayout?: boolean
+}
+
+const KEYBOARD_ROWS: KeyDef[][] = [
+  [
+    { id: 'tab', width: 64, label: 'tab' },
+    { id: 'Q', width: LETTER_W, label: 'Q' },
+    { id: 'W', width: LETTER_W, label: 'W' },
+    { id: 'E', width: LETTER_W, label: 'E' },
+  ],
+  [
+    { id: 'caps', width: 72, label: 'caps lock' },
+    { id: 'A', width: LETTER_W, label: 'A' },
+    { id: 'S', width: LETTER_W, label: 'S' },
+    { id: 'D', width: LETTER_W, label: 'D' },
+  ],
+  [
+    { id: 'shift', width: 88, label: 'shift', symbol: '⇧', shiftLayout: true },
+    { id: 'Z', width: LETTER_W, label: 'Z' },
+    { id: 'X', width: LETTER_W, label: 'X' },
+  ],
+  [
+    { id: 'fn', width: 42, label: 'fn' },
+    { id: 'control', width: 52, label: 'control', symbol: '⌃' },
+    { id: 'option', width: 52, label: 'option', symbol: '⌥' },
+    { id: 'command', width: 60, label: 'command', symbol: '⌘' },
+  ],
+]
+
+const SHORTCUTS = [
+  {
+    title: 'area select',
+    desc: 'drag to select any region',
+    combo: '⌃  ⌥  A',
+    keys: ['control', 'option', 'A'],
+  },
+  {
+    title: 'silent capture',
+    desc: 'captures your current window',
+    combo: '⌃  ⌥  S',
+    keys: ['control', 'option', 'S'],
+  },
+] as const
+
+function ShortcutsContent({ onBack }: { onBack: () => void }) {
+  const [group, setGroup] = useState(0)
+  const [pressed, setPressed] = useState<Set<string>>(new Set())
+  const [textVisible, setTextVisible] = useState(true)
+
+  useEffect(() => {
+    const CYCLE = 8000
+    const HALF = CYCLE / 2
+
+    let activeTimers: ReturnType<typeof setTimeout>[] = []
+
+    function runHalf(g: number) {
+      setGroup(g)
+      setTextVisible(true)
+
+      const keys = SHORTCUTS[g].keys
+      activeTimers.push(
+        setTimeout(() => setPressed(new Set([keys[0]])), 0),
+        setTimeout(() => setPressed(new Set([keys[0], keys[1]])), 150),
+        setTimeout(() => setPressed(new Set([keys[0], keys[1], keys[2]])), 300),
+        setTimeout(() => setPressed(new Set()), 2000),
+        setTimeout(() => setTextVisible(false), 3400),
+      )
+    }
+
+    function startCycle() {
+      activeTimers.forEach(clearTimeout)
+      activeTimers = []
+      runHalf(0)
+      activeTimers.push(setTimeout(() => runHalf(1), HALF))
+    }
+
+    startCycle()
+    const interval = setInterval(startCycle, CYCLE)
+
+    return () => {
+      clearInterval(interval)
+      activeTimers.forEach(clearTimeout)
+    }
+  }, [])
+
+  const current = SHORTCUTS[group]
+
+  return (
+    <>
+      <BackButton onClick={onBack} />
+
+      {/* Main content — left text + right keyboard */}
+      <div
+        className="flex flex-1 items-center justify-center"
+        style={{ gap: '36px', padding: '0 4px', minHeight: 0 }}
+      >
+        {/* Left: shortcut combo + title + description */}
+        <div
+          style={{
+            flexShrink: 0,
+            width: '150px',
+            opacity: textVisible ? 1 : 0,
+            transition: 'opacity 200ms ease',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '20px',
+              fontWeight: 600,
+              fontFamily: 'monospace',
+              color: 'rgba(255,255,255,0.7)',
+              marginBottom: '8px',
+            }}
+          >
+            {current.combo}
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+            {current.title}
+          </div>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>
+            {current.desc}
+          </div>
+        </div>
+
+        {/* Right: keyboard visualization */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: `${KEY_GAP}px`,
+            transform: 'scale(0.88)',
+            transformOrigin: 'center center',
+          }}
+        >
+          {KEYBOARD_ROWS.map((row, ri) => (
+            <div key={ri} style={{ display: 'flex', gap: `${KEY_GAP}px` }}>
+              {row.map((key) => {
+                const isPressed = pressed.has(key.id)
+                const isModifier = key.symbol && !key.shiftLayout
+                return (
+                  <div
+                    key={key.id}
+                    style={{
+                      width: `${key.width}px`,
+                      height: `${KEY_H}px`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: key.shiftLayout ? 'flex-start' : 'center',
+                      flexDirection: isModifier ? 'column' : 'row',
+                      gap: isModifier ? '2px' : key.shiftLayout ? '4px' : undefined,
+                      paddingLeft: key.shiftLayout ? '10px' : undefined,
+                      borderRadius: '8px',
+                      fontFamily: 'monospace',
+                      background: isPressed ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+                      borderTop: isPressed
+                        ? '1px solid rgba(255,255,255,0.4)'
+                        : '1px solid rgba(255,255,255,0.08)',
+                      borderLeft: `1px solid ${isPressed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                      borderRight: `1px solid ${isPressed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                      borderBottom: `1px solid ${isPressed ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.03)'}`,
+                      boxShadow: isPressed ? 'none' : '0 1px 2px rgba(0,0,0,0.3)',
+                      color: isPressed ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.25)',
+                      transform: isPressed ? 'scale(0.92)' : 'scale(1)',
+                      transition: 'all 150ms ease-out',
+                    }}
+                  >
+                    {isModifier && (
+                      <>
+                        <span style={{ fontSize: '12px', lineHeight: 1 }}>{key.symbol}</span>
+                        <span
+                          style={{
+                            fontSize: key.id === 'command' ? '8px' : '9px',
+                            lineHeight: 1,
+                          }}
+                        >
+                          {key.label}
+                        </span>
+                      </>
+                    )}
+                    {key.shiftLayout && (
+                      <>
+                        <span style={{ fontSize: '12px', lineHeight: 1 }}>{key.symbol}</span>
+                        <span style={{ fontSize: '10px', lineHeight: 1 }}>{key.label}</span>
+                      </>
+                    )}
+                    {!key.symbol && (
+                      <span style={{ fontSize: key.id.length === 1 ? '14px' : '10px' }}>
+                        {key.label}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Page 5: How to use (final, after Try it now → close + tray pulse) ───────
+
+function AppHereContent() {
+  return (
+    <div
+      className="flex flex-1 flex-col items-center"
+      style={{ minHeight: 0, gap: '20px', justifyContent: 'center' }}
+    >
+      {/* Title */}
+      <h2
+        style={{
+          fontSize: '20px',
+          fontWeight: 600,
+          color: 'rgba(255,255,255,0.95)',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        You&apos;re all set
+      </h2>
+
+      {/* macOS menu bar mock — right edge with status icons + ghost + clock */}
+      <div
+        style={{
+          width: '440px',
+          height: '30px',
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          padding: '0 14px',
+          gap: '12px',
+          flexShrink: 0,
+        }}
+      >
+        {/* Mock system icons (battery / wifi / control center) */}
+        {[10, 13, 12].map((w, i) => (
+          <div
+            key={i}
+            style={{
+              width: `${w}px`,
+              height: '12px',
+              borderRadius: '2px',
+              background: 'rgba(255,255,255,0.18)',
+            }}
+          />
+        ))}
+
+        {/* SnapCue ghost icon — highlighted with glow + arrow below */}
+        <div
+          style={{
+            position: 'relative',
+            width: '22px',
+            height: '22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <img
+            src={logoWhite}
+            alt=""
+            style={{
+              width: '20px',
+              height: '20px',
+              animation: 'app-here-glow 1.8s ease-in-out infinite',
+            }}
+            draggable={false}
+          />
+          {/* Arrow pointing up at the ghost from below the menu bar */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              left: '50%',
+              animation: 'app-here-arrow 1.4s ease-in-out infinite',
+              pointerEvents: 'none',
+            }}
+          >
+            <svg width="14" height="18" viewBox="0 0 14 18" fill="none">
+              <path
+                d="M7 16 L7 3 M7 3 L3 7 M7 3 L11 7"
+                stroke="rgba(255,255,255,0.85)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Clock */}
+        <span
+          style={{
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.7)',
+            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+            marginLeft: '4px',
+          }}
+        >
+          Sat 12:34
+        </span>
+      </div>
+
+      {/* Body copy */}
+      <div
+        className="flex flex-col items-center text-center"
+        style={{ gap: '8px', maxWidth: '380px', marginTop: '24px' }}
+      >
+        <p
+          style={{
+            fontSize: '14px',
+            color: 'rgba(255,255,255,0.85)',
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}
+        >
+          SnapCue lives in your menu bar.
+        </p>
+        <p
+          style={{
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.45)',
+            lineHeight: 1.6,
+          }}
+        >
+          Open any question, press <KeyChip>{'⌃'}</KeyChip> <KeyChip>{'⌥'}</KeyChip>{' '}
+          <KeyChip>A</KeyChip> to drag-select, and the answer appears in the dropdown.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function KeyChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '0 5px',
+        borderRadius: '3px',
+        background: 'rgba(255,255,255,0.1)',
+        border: '1px solid rgba(255,255,255,0.15)',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: 'rgba(255,255,255,0.85)',
+      }}
+    >
+      {children}
+    </span>
   )
 }
 

@@ -17,8 +17,10 @@ import {
   setTrayState,
   toggleDropdown,
   setOnDropdownShow,
+  pulseTrayIcon,
 } from './tray'
 import { closeOnboardingWindow, isOnboardingOpen } from './onboarding'
+import { showMenuBarCoachmark, hideMenuBarCoachmark } from './coachmark'
 import { captureScreenshot, checkScreenRecordingPermission } from './screenshot'
 import { loadSettings, saveSettings } from './store'
 import { config } from './config'
@@ -505,6 +507,11 @@ export async function initIpc(): Promise<void> {
   ipcMain.handle(IPC.ONBOARDING_COMPLETE, () => {
     applySettingsChange({ hasOnboarded: true })
     closeOnboardingWindow()
+    // Surface the menu-bar coachmark right after the onboarding window
+    // closes so the user discovers where SnapCue lives. The coachmark is a
+    // small floating window pointing up at the tray icon; the in-flight
+    // tray pulse triggered from the renderer reinforces it.
+    showMenuBarCoachmark()
   })
 
   ipcMain.handle(IPC.AUTH_GET_CURRENT_USER, async (): Promise<AuthUser | null> => {
@@ -564,12 +571,20 @@ export async function initIpc(): Promise<void> {
     closeSigninWindow()
   })
 
+  ipcMain.on(IPC.COACHMARK_DISMISS, () => {
+    hideMenuBarCoachmark()
+  })
+
   ipcMain.handle(IPC.CREDITS_GET, (): CreditsMeta | null => {
     return latestCreditsMeta
   })
 
   ipcMain.handle(IPC.CREDITS_REFRESH, async (): Promise<CreditsMeta | null> => {
     return refreshCreditsMeta()
+  })
+
+  ipcMain.handle(IPC.TRAY_PULSE, () => {
+    return pulseTrayIcon()
   })
 
   // Register global shortcuts from persisted settings

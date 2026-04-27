@@ -46,6 +46,8 @@ interface SnapCueAPI {
 
   // Onboarding
   completeOnboarding: () => Promise<void>
+  pulseTrayIcon: () => Promise<void>
+  dismissCoachmark: () => void
 
   // Auth
   getCurrentUser: () => Promise<AuthUser | null>
