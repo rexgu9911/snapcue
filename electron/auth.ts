@@ -126,3 +126,31 @@ export async function verifyOtpCode(
   if (error) return { success: false, error: error.message }
   return { success: true }
 }
+
+// Start the Google OAuth flow. Returns the URL that should be opened in the
+// user's default browser. Supabase handles the OAuth dance; after Google
+// authorization, Supabase redirects to MAGIC_LINK_REDIRECT (snapcue.io's
+// /auth/callback page) with the access_token + refresh_token in the URL hash.
+// That page then redirects to snapcue:// which the deep-link handler picks up,
+// reusing the exact same flow the magic link uses.
+//
+// skipBrowserRedirect: true is critical — without it the supabase-js client
+// tries to call window.location.assign() which doesn't exist in the Electron
+// main process; we want the URL back so we can shell.openExternal() it.
+export async function signInWithGoogle(): Promise<{
+  success: boolean
+  error?: string
+  url?: string
+}> {
+  if (!supabase) return { success: false, error: 'Auth is not configured.' }
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: MAGIC_LINK_REDIRECT,
+      skipBrowserRedirect: true,
+    },
+  })
+  if (error) return { success: false, error: error.message }
+  if (!data?.url) return { success: false, error: 'OAuth URL missing from response.' }
+  return { success: true, url: data.url }
+}

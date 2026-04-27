@@ -139,6 +139,7 @@ export interface RendererToMainCommands {
   'auth:getCurrentUser': { args: void; return: AuthUser | null }
   'auth:signIn': { args: string; return: SignInResult }
   'auth:verifyOtp': { args: { email: string; code: string }; return: SignInResult }
+  'auth:signInGoogle': { args: void; return: SignInResult }
   'auth:signOut': { args: void; return: void }
   'auth:openPricing': { args: void; return: void }
   'auth:openSignin': { args: void; return: void }
@@ -179,6 +180,7 @@ export const IPC = {
   AUTH_GET_CURRENT_USER: 'auth:getCurrentUser',
   AUTH_SIGN_IN: 'auth:signIn',
   AUTH_VERIFY_OTP: 'auth:verifyOtp',
+  AUTH_SIGN_IN_GOOGLE: 'auth:signInGoogle',
   AUTH_SIGN_OUT: 'auth:signOut',
   AUTH_OPEN_PRICING: 'auth:openPricing',
   AUTH_OPEN_SIGNIN: 'auth:openSignin',

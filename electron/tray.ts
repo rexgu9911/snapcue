@@ -164,7 +164,11 @@ function createDropdown(): BrowserWindow {
   return win
 }
 
-function showDropdown(): void {
+/** Programmatically show the dropdown — used after deep-link auth callbacks
+ * so the user gets immediate visual confirmation of sign-in even if the
+ * browser reclaims focus. The dropdown is `alwaysOnTop`, so it floats above
+ * any window the OS may put on top. */
+export function showDropdown(): void {
   if (!dropdown || !tray) return
 
   const trayBounds = tray.getBounds()

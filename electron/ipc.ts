@@ -28,6 +28,7 @@ import {
   clearStoredSession,
   getCurrentUser,
   getStoredSession,
+  signInWithGoogle,
   signInWithMagicLink,
   verifyOtpCode,
 } from './auth'
@@ -546,6 +547,21 @@ export async function initIpc(): Promise<void> {
       return { success: true }
     },
   )
+
+  ipcMain.handle(IPC.AUTH_SIGN_IN_GOOGLE, async (): Promise<SignInResult> => {
+    // Two-stage OAuth flow:
+    //  1. Ask Supabase for the Google authorization URL (skipBrowserRedirect
+    //     keeps the call from trying to navigate inside main process).
+    //  2. Open that URL in the user's default browser; Supabase + Google
+    //     handle the rest, eventually redirecting to snapcue:// which the
+    //     deep-link handler in main.ts picks up exactly like magic link.
+    const result = await signInWithGoogle()
+    if (!result.success || !result.url) {
+      return { success: false, error: result.error ?? 'Failed to start Google sign-in.' }
+    }
+    await shell.openExternal(result.url)
+    return { success: true }
+  })
 
   ipcMain.handle(IPC.AUTH_SIGN_OUT, async () => {
     await clearStoredSession()

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, globalShortcut } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
-import { initTray } from './tray'
+import { initTray, showDropdown } from './tray'
 import { initIpc, getSettings, refreshCreditsMeta } from './ipc'
 import { createOnboardingWindow } from './onboarding'
 import { closeSigninWindow } from './signin'
@@ -68,6 +68,13 @@ async function handleAuthCallback(parsed: URL): Promise<void> {
   // Pull credits meta immediately after login so the footer / settings
   // render with a real balance without waiting for the first capture.
   void refreshCreditsMeta()
+
+  // Auto-show the dropdown so the user gets immediate visual confirmation
+  // that sign-in succeeded — without this, the user would click "Allow" in
+  // the macOS prompt, see SnapCue briefly take focus, then watch Chrome
+  // reclaim focus and feel uncertain whether sign-in actually worked. The
+  // dropdown is alwaysOnTop, so it surfaces above Chrome regardless.
+  showDropdown()
 }
 
 async function handleCheckoutSuccess(): Promise<void> {

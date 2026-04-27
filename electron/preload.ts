@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('snapcue', {
   signIn: (email: string) => ipcRenderer.invoke(IPC.AUTH_SIGN_IN, email) as Promise<SignInResult>,
   verifyOtp: (email: string, code: string) =>
     ipcRenderer.invoke(IPC.AUTH_VERIFY_OTP, { email, code }) as Promise<SignInResult>,
+  signInGoogle: () => ipcRenderer.invoke(IPC.AUTH_SIGN_IN_GOOGLE) as Promise<SignInResult>,
   signOut: () => ipcRenderer.invoke(IPC.AUTH_SIGN_OUT) as Promise<void>,
   openPricing: () => ipcRenderer.invoke(IPC.AUTH_OPEN_PRICING) as Promise<void>,
   openSignin: () => ipcRenderer.invoke(IPC.AUTH_OPEN_SIGNIN) as Promise<void>,
