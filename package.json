@@ -91,11 +91,11 @@
       "iconTextSize": 12,
       "contents": [
         {
-          "x": 90,
+          "x": 140,
           "y": 200
         },
         {
-          "x": 350,
+          "x": 400,
           "y": 200,
           "type": "link",
           "path": "/Applications"
