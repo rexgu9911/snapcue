@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_SETTINGS } from '../../shared/types'
+import { SignInPrompt } from './sign-in-prompt'
 
 /** Map Electron modifier names to symbol + label pairs for key caps */
 const MODIFIER_MAP: Record<string, { symbol: string; label: string }> = {
@@ -97,45 +98,7 @@ export function IdleView({ user, hasFirstCapture }: IdleViewProps) {
   // here instead of letting the user hit the shortcut and see an auth_required
   // paywall only after a failed attempt.
   if (!user) {
-    return (
-      <div className="flex flex-col items-center" style={{ padding: '16px 12px' }}>
-        <span
-          style={{
-            fontSize: '13px',
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.6)',
-            marginBottom: '4px',
-          }}
-        >
-          Sign in to get started
-        </span>
-        <span
-          style={{
-            fontSize: '11px',
-            color: 'rgba(255,255,255,0.3)',
-            marginBottom: '10px',
-          }}
-        >
-          6-digit code · no password
-        </span>
-        <button
-          onClick={() => window.snapcue.openSignin()}
-          className="transition-colors"
-          style={{
-            padding: '4px 14px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.7)',
-            background: 'rgba(255,255,255,0.08)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-        >
-          Sign in
-        </button>
-      </div>
-    )
+    return <SignInPrompt title="Sign in to get started" />
   }
 
   const regionKeys = parseAccelerator(regionAccel)

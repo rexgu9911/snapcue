@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useAutoHeight } from './use-auto-height'
-import { AnswerPanel } from './answer-panel'
+import { useAutoHeight } from './hooks/use-auto-height'
+import { AnswerPanel } from './components/answer-panel'
 import { PermissionGuide } from './components/permission-guide'
 import { FooterBar } from './components/footer-bar'
 import { SettingsView } from './components/settings-view'
 import { IdleView } from './components/idle-view'
 import { LoadingView } from './components/loading-view'
+import { SignInPrompt } from './components/sign-in-prompt'
 
 type Status = 'ready' | 'loading' | 'result' | 'error' | 'no-permission'
 type View = 'main' | 'settings'
@@ -30,44 +31,7 @@ interface ErrorPanelProps {
 
 function ErrorPanel({ error, meta, regionShortcut, onOpenSettings, onDismiss }: ErrorPanelProps) {
   if (error.type === 'auth_required') {
-    return (
-      <div style={{ padding: '10px 12px' }}>
-        <p
-          style={{
-            fontSize: '13px',
-            color: 'rgba(255,255,255,0.6)',
-            marginBottom: '4px',
-          }}
-        >
-          Sign in to continue
-        </p>
-        <p
-          style={{
-            fontSize: '10px',
-            color: 'rgba(255,255,255,0.3)',
-            marginBottom: '10px',
-          }}
-        >
-          6-digit code · no password
-        </p>
-        <button
-          onClick={() => window.snapcue.openSignin()}
-          className="w-full transition-colors"
-          style={{
-            padding: '5px 0',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.7)',
-            background: 'rgba(255,255,255,0.08)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-        >
-          Sign in
-        </button>
-      </div>
-    )
+    return <SignInPrompt title="Sign in to continue" variant="block" />
   }
 
   if (error.type === 'no_credits') {
