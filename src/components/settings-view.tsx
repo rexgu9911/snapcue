@@ -67,6 +67,10 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
     toggleDropdown: '',
   })
   const [trayIcon, setTrayIcon] = useState<TrayIcon>('dot')
+  const [answerPeek, setAnswerPeek] = useState<AppSettings['answerPeek']>({
+    enabled: true,
+    autoCopy: false,
+  })
   const [recording, setRecording] = useState<RecordingField>(null)
   const [conflict, setConflict] = useState<RecordingField>(null)
   const [saved, setSaved] = useState<RecordingField>(null)
@@ -76,6 +80,7 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
     window.snapcue.getSettings().then((s) => {
       setHotkeys(s.hotkeys)
       setTrayIcon(s.trayIcon)
+      setAnswerPeek(s.answerPeek)
     })
   }, [])
 
@@ -126,8 +131,22 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
     window.snapcue.setSettings({ trayIcon: icon })
   }
 
+  const handleAnswerPeekChange = (partial: Partial<AppSettings['answerPeek']>) => {
+    const next = { ...answerPeek, ...partial }
+    setAnswerPeek(next)
+    window.snapcue.setSettings({ answerPeek: next })
+  }
+
   return (
-    <div className="flex flex-col">
+    <div style={{ position: 'relative', maxHeight: '400px' }}>
+      <div
+        className="flex flex-col"
+        style={{
+          maxHeight: '400px',
+          overflowY: 'auto',
+          paddingBottom: '10px',
+        }}
+      >
       {/* Back button */}
       <button
         onClick={onBack}
@@ -224,6 +243,27 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
         />
       </div>
 
+      {/* Peek section */}
+      <div style={{ padding: '4px 10px 4px' }}>
+        <div
+          style={{
+            fontSize: '11px',
+            letterSpacing: '0.5px',
+            color: 'rgba(255,255,255,0.3)',
+            marginTop: '8px',
+            marginBottom: '6px',
+            textTransform: 'uppercase' as const,
+          }}
+        >
+          Peek
+        </div>
+        <ToggleRow
+          label="Quick Peek"
+          checked={answerPeek.enabled}
+          onChange={(enabled) => handleAnswerPeekChange({ enabled })}
+        />
+      </div>
+
       {/* Icon section */}
       <div style={{ padding: '4px 10px 6px' }}>
         <div
@@ -293,6 +333,20 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
           Quit
         </button>
       </div>
+      </div>
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: '22px',
+          pointerEvents: 'none',
+          background:
+            'linear-gradient(to bottom, rgba(30,30,30,0), rgba(30,30,30,0.92) 82%)',
+        }}
+      />
     </div>
   )
 }
@@ -587,6 +641,49 @@ function ShortcutRow({
           already in use
         </p>
       )}
+    </div>
+  )
+}
+
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between" style={{ padding: '4px 0' }}>
+      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+      <button
+        onClick={() => onChange(!checked)}
+        aria-label={`${checked ? 'Disable' : 'Enable'} ${label}`}
+        style={{
+          width: '30px',
+          height: '18px',
+          borderRadius: '999px',
+          background: checked ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.10)',
+          border: checked
+            ? '0.5px solid rgba(16,185,129,0.45)'
+            : '0.5px solid rgba(255,255,255,0.08)',
+          padding: '2px',
+          transition: 'background 140ms ease, border-color 140ms ease',
+        }}
+      >
+        <span
+          style={{
+            display: 'block',
+            width: '13px',
+            height: '13px',
+            borderRadius: '999px',
+            background: 'rgba(255,255,255,0.9)',
+            transform: checked ? 'translateX(12px)' : 'translateX(0)',
+            transition: 'transform 140ms ease',
+          }}
+        />
+      </button>
     </div>
   )
 }

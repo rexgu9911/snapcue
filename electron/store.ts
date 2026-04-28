@@ -15,6 +15,10 @@ export function loadSettings(): AppSettings {
         ...DEFAULT_SETTINGS.hotkeys,
         ...(raw['hotkeys'] as Record<string, string> | undefined),
       },
+      answerPeek: {
+        ...DEFAULT_SETTINGS.answerPeek,
+        ...(raw['answerPeek'] as Record<string, boolean> | undefined),
+      },
     }
   } catch {
     return { ...DEFAULT_SETTINGS }

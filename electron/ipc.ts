@@ -1,4 +1,14 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, shell, net, globalShortcut } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  shell,
+  net,
+  globalShortcut,
+  screen,
+  type Point,
+} from 'electron'
 import {
   IPC,
   type CaptureMode,
@@ -33,6 +43,12 @@ import {
   verifyOtpCode,
 } from './auth'
 import { createSigninWindow, closeSigninWindow } from './signin'
+import {
+  hideAnswerBubble,
+  registerAnswerBubbleIpc,
+  showAnswerBubbleLoading,
+  showAnswerBubbleResult,
+} from './answer-bubble'
 
 const API_TIMEOUT_MS = 30_000
 
@@ -241,6 +257,7 @@ export async function refreshCreditsMeta(): Promise<CreditsMeta | null> {
 // ── Last screenshot cache (for retry) ───────────────────────────────────────
 
 let lastScreenshot: string | null = null
+let lastCaptureAnchor: Point | null = null
 
 // ── Error type → user-facing copy + retry policy ────────────────────────────
 
@@ -312,11 +329,15 @@ function registerShortcuts(): void {
 
 function applySettingsChange(partial: Partial<AppSettings>): void {
   const oldHotkeys = { ...settings.hotkeys }
+  const oldAnswerPeek = { ...settings.answerPeek }
   const oldIcon = settings.trayIcon
 
   settings = { ...settings, ...partial }
   if (partial.hotkeys) {
     settings.hotkeys = { ...oldHotkeys, ...partial.hotkeys }
+  }
+  if (partial.answerPeek) {
+    settings.answerPeek = { ...oldAnswerPeek, ...partial.answerPeek }
   }
   saveSettings(settings)
 
@@ -331,16 +352,33 @@ function applySettingsChange(partial: Partial<AppSettings>): void {
   }
 }
 
+function getCaptureAnchor(mode: CaptureMode): Point {
+  const cursor = screen.getCursorScreenPoint()
+  if (mode === 'region') return cursor
+
+  const display = screen.getDisplayNearestPoint(cursor)
+  const area = display.workArea
+  return {
+    x: Math.round(area.x + area.width - 280),
+    y: Math.round(area.y + 96),
+  }
+}
+
 // ── Capture handler ──────────────────────────────────────────────────────────
 
 /** Send screenshot to backend and dispatch result/error + credits update */
-async function analyzeAndDeliver(base64: string): Promise<void> {
+async function analyzeAndDeliver(base64: string, anchor: Point): Promise<void> {
   // Full-body try/catch guarantees the renderer never stays stuck in loading:
   // once sendToDropdown(CAPTURE_LOADING) fires, exactly one of
   // CAPTURE_RESULT / CAPTURE_ERROR must follow. Any throw on the path below
   // (including tray state changes, push helpers, or post-result bookkeeping)
   // falls through to the catch and surfaces as an unknown error.
   try {
+    if (settings.answerPeek.enabled) {
+      showAnswerBubbleLoading(anchor)
+    } else {
+      hideAnswerBubble()
+    }
     sendToDropdown(IPC.CAPTURE_LOADING)
     setTrayState('analyzing')
 
@@ -353,6 +391,7 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
     }
 
     if (!result.ok) {
+      hideAnswerBubble()
       const error: CaptureError = {
         type: result.errorType,
         message: messageForErrorType(result.errorType),
@@ -363,6 +402,7 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
     }
 
     if (result.answers.length === 0) {
+      hideAnswerBubble()
       const error: CaptureError = {
         type: 'no_questions',
         message: messageForErrorType('no_questions'),
@@ -373,12 +413,16 @@ async function analyzeAndDeliver(base64: string): Promise<void> {
     }
 
     sendToDropdown(IPC.CAPTURE_RESULT, result.answers)
+    if (settings.answerPeek.enabled) {
+      showAnswerBubbleResult(result.answers)
+    }
 
     if (!settings.hasFirstCapture) {
       applySettingsChange({ hasFirstCapture: true })
     }
   } catch (err) {
     console.error('[ipc] analyzeAndDeliver unexpected error:', err)
+    hideAnswerBubble()
     sendToDropdown(IPC.CAPTURE_ERROR, {
       type: 'unknown',
       message: 'Unexpected error. Try again.',
@@ -406,6 +450,7 @@ async function handleCapture(mode: CaptureMode): Promise<void> {
 
   // Cache for retry
   lastScreenshot = base64
+  lastCaptureAnchor = getCaptureAnchor(mode)
 
   // Step 2: analyze. Outer catch is a last line of defense — Fix 2.1 already
   // wraps analyzeAndDeliver's body, but hotkey handlers are fire-and-forget
@@ -413,7 +458,7 @@ async function handleCapture(mode: CaptureMode): Promise<void> {
   // promise rejection. Leave a breadcrumb in console + surface a generic
   // error to the renderer.
   try {
-    await analyzeAndDeliver(base64)
+    await analyzeAndDeliver(base64, lastCaptureAnchor)
   } catch (err) {
     console.error('[ipc] handleCapture top-level error:', err)
     sendToDropdown(IPC.CAPTURE_ERROR, {
@@ -436,12 +481,14 @@ async function handleRetry(): Promise<void> {
     return
   }
 
-  await analyzeAndDeliver(lastScreenshot)
+  await analyzeAndDeliver(lastScreenshot, lastCaptureAnchor ?? screen.getCursorScreenPoint())
 }
 
 // ── Register all IPC handlers ────────────────────────────────────────────────
 
 export async function initIpc(): Promise<void> {
+  registerAnswerBubbleIpc()
+
   // Check permission on startup
   screenPermissionGranted = checkScreenRecordingPermission()
   if (!screenPermissionGranted) {
@@ -620,6 +667,10 @@ export async function initIpc(): Promise<void> {
   // (upgrades in the browser, device sync, manual SQL, etc.).
   setOnDropdownShow(() => {
     void refreshCreditsMeta()
+    void getCurrentUser().then((user) => {
+      if (!user?.email) return
+      sendToDropdown(IPC.AUTH_SIGNED_IN, { email: user.email })
+    })
   })
 }
 

@@ -6,6 +6,9 @@ import {
   type AnswerItem,
   type AuthUser,
   type CaptureError,
+  type AnswerBubblePayload,
+  type AnswerBubbleMovePayload,
+  type AnswerBubbleLayoutPayload,
   type SignInResult,
   type CreditsMeta,
   type OpenBillingPortalResult,
@@ -37,6 +40,18 @@ contextBridge.exposeInMainWorld('snapcue', {
     return () => ipcRenderer.removeListener(IPC.CAPTURE_ERROR, listener)
   },
   retryCapture: () => ipcRenderer.invoke(IPC.CAPTURE_RETRY),
+  closeAnswerBubble: () => ipcRenderer.send(IPC.ANSWER_BUBBLE_CLOSE),
+  setAnswerBubbleExpanded: (expanded: boolean) =>
+    ipcRenderer.send(IPC.ANSWER_BUBBLE_SET_EXPANDED, expanded),
+  moveAnswerBubbleBy: (delta: AnswerBubbleMovePayload) =>
+    ipcRenderer.send(IPC.ANSWER_BUBBLE_MOVE_BY, delta),
+  setAnswerBubbleLayout: (layout: AnswerBubbleLayoutPayload) =>
+    ipcRenderer.send(IPC.ANSWER_BUBBLE_SET_LAYOUT, layout),
+  onAnswerBubbleShow: (cb: (payload: AnswerBubblePayload) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, payload: AnswerBubblePayload) => cb(payload)
+    ipcRenderer.on(IPC.ANSWER_BUBBLE_SHOW, listener)
+    return () => ipcRenderer.removeListener(IPC.ANSWER_BUBBLE_SHOW, listener)
+  },
 
   // ── Credits ──────────────────────────────────────────────────────────────
   getCreditsMeta: () => ipcRenderer.invoke(IPC.CREDITS_GET) as Promise<CreditsMeta | null>,

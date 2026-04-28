@@ -61,6 +61,10 @@ export interface AppSettings {
     toggleDropdown: string
   }
   trayIcon: TrayIcon
+  answerPeek: {
+    enabled: boolean
+    autoCopy: boolean
+  }
   hasOnboarded: boolean
   hasFirstCapture?: boolean
 }
@@ -72,7 +76,26 @@ export const DEFAULT_SETTINGS: AppSettings = {
     toggleDropdown: 'Control+Alt+D',
   },
   trayIcon: 'ghost',
+  answerPeek: {
+    enabled: true,
+    autoCopy: false,
+  },
   hasOnboarded: false,
+}
+
+export interface AnswerBubblePayload {
+  state: 'loading' | 'result'
+  answers?: AnswerItem[]
+}
+
+export interface AnswerBubbleMovePayload {
+  dx: number
+  dy: number
+}
+
+export interface AnswerBubbleLayoutPayload {
+  width: number
+  height: number
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -105,6 +128,7 @@ export interface MainToRendererEvents {
   'capture:loading': void
   'capture:result': AnswerItem[]
   'capture:error': CaptureError
+  'answerBubble:show': AnswerBubblePayload
   'credits:update': CreditsMeta | null
   'permission:status': boolean
   'auth:signedIn': { email: string }
@@ -118,6 +142,10 @@ export interface MainToRendererEvents {
 export interface RendererToMainEvents {
   'dropdown:hide': void
   'dropdown:resize': number
+  'answerBubble:close': void
+  'answerBubble:setExpanded': boolean
+  'answerBubble:moveBy': AnswerBubbleMovePayload
+  'answerBubble:setLayout': AnswerBubbleLayoutPayload
   'auth:closeSignin': void
   'coachmark:dismiss': void
 }
@@ -156,6 +184,7 @@ export const IPC = {
   CAPTURE_LOADING: 'capture:loading',
   CAPTURE_RESULT: 'capture:result',
   CAPTURE_ERROR: 'capture:error',
+  ANSWER_BUBBLE_SHOW: 'answerBubble:show',
   CREDITS_UPDATE: 'credits:update',
   PERMISSION_STATUS: 'permission:status',
   AUTH_SIGNED_IN: 'auth:signedIn',
@@ -164,6 +193,10 @@ export const IPC = {
   // Renderer → Main (fire-and-forget)
   DROPDOWN_HIDE: 'dropdown:hide',
   DROPDOWN_RESIZE: 'dropdown:resize',
+  ANSWER_BUBBLE_CLOSE: 'answerBubble:close',
+  ANSWER_BUBBLE_SET_EXPANDED: 'answerBubble:setExpanded',
+  ANSWER_BUBBLE_MOVE_BY: 'answerBubble:moveBy',
+  ANSWER_BUBBLE_SET_LAYOUT: 'answerBubble:setLayout',
   AUTH_CLOSE_SIGNIN: 'auth:closeSignin',
   COACHMARK_DISMISS: 'coachmark:dismiss',
 

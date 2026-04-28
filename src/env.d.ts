@@ -4,6 +4,9 @@
 type CaptureMode = import('../shared/types').CaptureMode
 type AppSettings = import('../shared/types').AppSettings
 type AnswerItem = import('../shared/types').AnswerItem
+type AnswerBubblePayload = import('../shared/types').AnswerBubblePayload
+type AnswerBubbleMovePayload = import('../shared/types').AnswerBubbleMovePayload
+type AnswerBubbleLayoutPayload = import('../shared/types').AnswerBubbleLayoutPayload
 type CaptureError = import('../shared/types').CaptureError
 type ErrorType = import('../shared/types').ErrorType
 type TrayIcon = import('../shared/types').TrayIcon
@@ -25,6 +28,11 @@ interface SnapCueAPI {
   onCaptureResult: (cb: (answers: AnswerItem[]) => void) => () => void
   onCaptureError: (cb: (error: CaptureError) => void) => () => void
   retryCapture: () => Promise<void>
+  closeAnswerBubble: () => void
+  setAnswerBubbleExpanded: (expanded: boolean) => void
+  moveAnswerBubbleBy: (delta: AnswerBubbleMovePayload) => void
+  setAnswerBubbleLayout: (layout: AnswerBubbleLayoutPayload) => void
+  onAnswerBubbleShow: (cb: (payload: AnswerBubblePayload) => void) => () => void
 
   // Credits
   getCreditsMeta: () => Promise<CreditsMeta | null>
