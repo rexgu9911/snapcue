@@ -323,7 +323,7 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
           borderTop: '0.5px solid rgba(255,255,255,0.06)',
         }}
       >
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>v0.1.0</span>
+        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>v0.1.4</span>
         <button
           onClick={() => window.snapcue.quit()}
           style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}
