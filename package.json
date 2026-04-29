@@ -1,6 +1,6 @@
 {
   "name": "snapcue",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "macOS menu bar AI study assistant",
   "main": "./out/main/index.js",
   "scripts": {
@@ -72,7 +72,10 @@
     "afterSign": "scripts/notarize.js",
     "afterAllArtifactBuild": "scripts/notarize-dmg.js",
     "mac": {
-      "target": "dmg",
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.education",
       "icon": "build/icon.icns",
       "hardenedRuntime": true,
