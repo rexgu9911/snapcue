@@ -11,25 +11,11 @@ import {
 const INITIAL_SIZE: Size = { width: 76, height: 34 }
 const EDGE_PADDING = 10
 const CURSOR_GAP = 14
-const AUTO_DISMISS_MS = 45_000
 
 let bubble: BrowserWindow | null = null
 let currentSize: Size = INITIAL_SIZE
-let dismissTimer: ReturnType<typeof setTimeout> | null = null
 let ipcRegistered = false
-
-function clearDismissTimer(): void {
-  if (!dismissTimer) return
-  clearTimeout(dismissTimer)
-  dismissTimer = null
-}
-
-function scheduleDismiss(): void {
-  clearDismissTimer()
-  dismissTimer = setTimeout(() => {
-    hideAnswerBubble()
-  }, AUTO_DISMISS_MS)
-}
+let savePositionCallback: ((pos: Point) => void) | null = null
 
 function clampPosition(x: number, y: number, width: number, height: number): Point {
   const display = screen.getDisplayNearestPoint({ x, y })
@@ -65,9 +51,19 @@ function resizeBubble(layout: AnswerBubbleLayoutPayload): void {
   if (!bubble || bubble.isDestroyed()) return
 
   const nextSize = {
-    width: Math.max(54, Math.min(Math.ceil(layout.width), 280)),
-    height: Math.max(30, Math.min(Math.ceil(layout.height), 190)),
+    width: Math.max(54, Math.min(Math.ceil(layout.width), 320)),
+    height: Math.max(30, Math.min(Math.ceil(layout.height), 480)),
   }
+
+  // No-op when target matches current. The renderer's ResizeObserver may
+  // re-fire several times during the same animation frame as content
+  // settles, sending duplicate dimensions; without this guard each repeat
+  // re-triggers a native window resize and ResizeObserver again, creating
+  // a feedback loop the user perceives as the bubble flickering.
+  if (currentSize.width === nextSize.width && currentSize.height === nextSize.height) {
+    return
+  }
+
   const bounds = bubble.getBounds()
   const center = {
     x: bounds.x + bounds.width / 2,
@@ -81,19 +77,17 @@ function resizeBubble(layout: AnswerBubbleLayoutPayload): void {
   )
 
   currentSize = nextSize
-  bubble.setBounds({ ...nextPos, ...nextSize }, true)
+  // Animate:false — macOS's native resize animation creates intermediate
+  // frames that ResizeObserver in the renderer reads as "size changed",
+  // each restarting the animation. Instant resize cuts that loop entirely.
+  bubble.setBounds({ ...nextPos, ...nextSize }, false)
 }
 
 function moveBubbleBy(delta: AnswerBubbleMovePayload): void {
   if (!bubble || bubble.isDestroyed()) return
 
   const bounds = bubble.getBounds()
-  const next = clampPosition(
-    bounds.x + delta.dx,
-    bounds.y + delta.dy,
-    bounds.width,
-    bounds.height,
-  )
+  const next = clampPosition(bounds.x + delta.dx, bounds.y + delta.dy, bounds.width, bounds.height)
 
   bubble.setPosition(next.x, next.y, false)
 }
@@ -147,16 +141,21 @@ function compactAnswers(answers: AnswerItem[]): AnswerItem[] {
   return answers.slice(0, 8)
 }
 
-export function showAnswerBubbleLoading(anchor: Point): void {
+export function showAnswerBubbleLoading(anchor: Point, savedPosition: Point | null): void {
   const win = ensureBubble()
   currentSize = INITIAL_SIZE
-  win.setBounds({ ...positionNear(anchor, currentSize), ...currentSize }, false)
+  // When the user has dragged the capsule to a preferred spot, restore there
+  // and clamp to current screen geometry (handles disconnected monitors).
+  // Falls back to anchor-near positioning when there's no saved spot.
+  const initialPos = savedPosition
+    ? clampPosition(savedPosition.x, savedPosition.y, currentSize.width, currentSize.height)
+    : positionNear(anchor, currentSize)
+  win.setBounds({ ...initialPos, ...currentSize }, false)
 
   sendWhenReady(win, () => {
     if (win.isDestroyed()) return
     win.webContents.send(IPC.ANSWER_BUBBLE_SHOW, { state: 'loading' })
     win.showInactive()
-    scheduleDismiss()
   })
 }
 
@@ -171,40 +170,44 @@ export function showAnswerBubbleResult(answers: AnswerItem[]): void {
       answers: compactAnswers(answers),
     })
     if (!win.isVisible()) win.showInactive()
-    scheduleDismiss()
   })
 }
 
 export function hideAnswerBubble(): void {
-  clearDismissTimer()
   if (!bubble || bubble.isDestroyed() || !bubble.isVisible()) return
   bubble.hide()
 }
 
-export function registerAnswerBubbleIpc(): void {
+export function registerAnswerBubbleIpc(opts: { onSavePosition: (pos: Point) => void }): void {
   if (ipcRegistered) return
   ipcRegistered = true
+  savePositionCallback = opts.onSavePosition
 
   ipcMain.on(IPC.ANSWER_BUBBLE_CLOSE, () => {
     hideAnswerBubble()
   })
 
   ipcMain.on(IPC.ANSWER_BUBBLE_SET_EXPANDED, () => {
-    scheduleDismiss()
+    // No-op: kept for forward-compat with the renderer's existing call.
+    // Auto-dismiss has been removed; expand/collapse is purely visual now.
   })
 
   ipcMain.on(IPC.ANSWER_BUBBLE_MOVE_BY, (_event, delta: AnswerBubbleMovePayload) => {
     moveBubbleBy(delta)
-    scheduleDismiss()
+  })
+
+  ipcMain.on(IPC.ANSWER_BUBBLE_SAVE_DRAGGED_POSITION, () => {
+    if (!bubble || bubble.isDestroyed()) return
+    if (!savePositionCallback) return
+    const bounds = bubble.getBounds()
+    savePositionCallback({ x: bounds.x, y: bounds.y })
   })
 
   ipcMain.on(IPC.ANSWER_BUBBLE_SET_LAYOUT, (_event, layout: AnswerBubbleLayoutPayload) => {
     resizeBubble(layout)
-    scheduleDismiss()
   })
 
   app.on('before-quit', () => {
-    clearDismissTimer()
     if (bubble && !bubble.isDestroyed()) {
       bubble.destroy()
     }

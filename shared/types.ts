@@ -64,6 +64,12 @@ export interface AppSettings {
   answerPeek: {
     enabled: boolean
     autoCopy: boolean
+    /**
+     * Last screen-coordinate the user dragged the Peek capsule to. When set,
+     * future captures restore here instead of anchoring to the cursor; null
+     * means "follow cursor" (the default and the pre-v0.1.5 behavior).
+     */
+    savedPosition: { x: number; y: number } | null
   }
   hasOnboarded: boolean
   hasFirstCapture?: boolean
@@ -79,6 +85,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   answerPeek: {
     enabled: true,
     autoCopy: false,
+    savedPosition: null,
   },
   hasOnboarded: false,
 }
@@ -115,6 +122,22 @@ export interface SignInResult {
 // active subscription to manage") instead of silently failing.
 export type OpenBillingPortalResult = { ok: true } | { ok: false; error: string }
 
+// ── Updates ──────────────────────────────────────────────────────────────────
+//
+// Surfaced in Settings → Updates so the user has explicit visibility into the
+// otherwise-invisible auto-update flow. State is shared between the silent
+// startup check (checkForUpdatesAndNotify) and the manual "Check for Updates"
+// button — both write to the same status, so opening Settings later still
+// shows a downloaded update waiting to install.
+
+export type UpdateStatus =
+  | { phase: 'idle' }
+  | { phase: 'checking' }
+  | { phase: 'up-to-date' }
+  | { phase: 'downloading'; version: string }
+  | { phase: 'downloaded'; version: string }
+  | { phase: 'error'; message: string }
+
 // ── IPC Channel Definitions ──────────────────────────────────────────────────
 //
 // Every IPC channel used in the app is defined here so both the main process
@@ -133,6 +156,7 @@ export interface MainToRendererEvents {
   'permission:status': boolean
   'auth:signedIn': { email: string }
   'auth:signedOut': void
+  'update:status': UpdateStatus
 }
 
 /**
@@ -145,6 +169,7 @@ export interface RendererToMainEvents {
   'answerBubble:close': void
   'answerBubble:setExpanded': boolean
   'answerBubble:moveBy': AnswerBubbleMovePayload
+  'answerBubble:saveDraggedPosition': void
   'answerBubble:setLayout': AnswerBubbleLayoutPayload
   'auth:closeSignin': void
   'coachmark:dismiss': void
@@ -175,6 +200,10 @@ export interface RendererToMainCommands {
   'credits:get': { args: void; return: CreditsMeta | null }
   'credits:refresh': { args: void; return: CreditsMeta | null }
   'tray:pulse': { args: void; return: void }
+  'app:getVersion': { args: void; return: string }
+  'update:getStatus': { args: void; return: UpdateStatus }
+  'update:check': { args: void; return: void }
+  'update:quitAndInstall': { args: void; return: void }
 }
 
 // ── Channel name constants (prevents typos) ──────────────────────────────────
@@ -196,6 +225,7 @@ export const IPC = {
   ANSWER_BUBBLE_CLOSE: 'answerBubble:close',
   ANSWER_BUBBLE_SET_EXPANDED: 'answerBubble:setExpanded',
   ANSWER_BUBBLE_MOVE_BY: 'answerBubble:moveBy',
+  ANSWER_BUBBLE_SAVE_DRAGGED_POSITION: 'answerBubble:saveDraggedPosition',
   ANSWER_BUBBLE_SET_LAYOUT: 'answerBubble:setLayout',
   AUTH_CLOSE_SIGNIN: 'auth:closeSignin',
   COACHMARK_DISMISS: 'coachmark:dismiss',
@@ -221,4 +251,9 @@ export const IPC = {
   CREDITS_GET: 'credits:get',
   CREDITS_REFRESH: 'credits:refresh',
   TRAY_PULSE: 'tray:pulse',
+  APP_GET_VERSION: 'app:getVersion',
+  UPDATE_STATUS: 'update:status',
+  UPDATE_GET_STATUS: 'update:getStatus',
+  UPDATE_CHECK: 'update:check',
+  UPDATE_QUIT_AND_INSTALL: 'update:quitAndInstall',
 } as const

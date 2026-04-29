@@ -17,7 +17,7 @@ export function loadSettings(): AppSettings {
       },
       answerPeek: {
         ...DEFAULT_SETTINGS.answerPeek,
-        ...(raw['answerPeek'] as Record<string, boolean> | undefined),
+        ...(raw['answerPeek'] as Partial<AppSettings['answerPeek']> | undefined),
       },
     }
   } catch {

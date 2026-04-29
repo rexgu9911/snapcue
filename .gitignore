@@ -15,3 +15,4 @@ build/*.original.icns
 # personal next-step tracking, but don't expose internal handoff state in
 # the public repo. Future clones won't see this; that's intentional.
 /CLAUDE.md
+/DEVLOG.md

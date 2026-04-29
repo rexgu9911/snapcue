@@ -111,15 +111,14 @@ body {
 }
 
 .peek-capsule.is-expanded {
-  border-radius: 17px;
+  border-radius: 14px;
+  align-items: stretch;
+  justify-content: stretch;
+  cursor: default;
 }
 
-.peek-label,
-.peek-single-answer,
-.peek-list-row {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, Helvetica, Arial, sans-serif;
-  letter-spacing: 0;
+.peek-capsule.is-expanded:active {
+  cursor: default;
 }
 
 .peek-collapsed {
@@ -136,6 +135,9 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
   font-size: 13px;
   font-weight: 650;
   line-height: 1;
@@ -175,88 +177,185 @@ body {
   animation-delay: 240ms;
 }
 
-.peek-close-dot {
-  position: absolute;
-  top: 7px;
-  right: 8px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  border: 0;
-  background: rgba(255, 255, 255, 0.32);
-  opacity: 0;
-  cursor: pointer;
-  transition:
-    opacity 140ms ease,
-    background 140ms ease;
+/* ── Expanded card ─────────────────────────────────────────────────── */
+
+.peek-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, Helvetica, Arial, sans-serif;
+  /* Padding values are mirrored in answer-bubble-view.tsx
+     (EXPANDED_TOP_PADDING / EXPANDED_BOTTOM_PADDING) so measurement adds
+     the right slack. Top padding clears the absolute corner ×. */
+  padding: 30px 16px 14px;
+  box-sizing: border-box;
 }
 
-.peek-capsule.is-expanded:hover .peek-close-dot {
+.peek-card-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  /* When content fits the window (the common case), body's clientHeight
+     equals its scrollHeight and no scrolling is needed. When content
+     exceeds EXPANDED_MAX_HEIGHT, the window caps and body scrolls
+     internally (scrollbar hidden globally). bodyRef.scrollHeight in the
+     parent component is unaffected by overflow:auto and reports the true
+     intrinsic height, so the window can size correctly. */
+  overflow-y: auto;
+}
+
+.peek-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.42);
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease;
+}
+
+.peek-close:hover {
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Inline variant (collapsed pill): sits in flow after the chevron.
+   Subtle by default — shouldn't compete with the answer for attention —
+   but visible enough that users discover it without hovering. */
+.peek-close--inline {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin-left: 2px;
+  opacity: 0.55;
+}
+
+.peek-capsule:hover .peek-close--inline {
   opacity: 1;
 }
 
-.peek-close-dot:hover {
-  background: rgba(255, 255, 255, 0.72);
+/* Corner variant (expanded card): floats over the top-right corner so
+   the body text below isn't cropped. Always visible since it's the
+   primary dismiss affordance once the card is open. */
+.peek-close--corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  z-index: 1;
+  opacity: 1;
 }
 
-.peek-single {
-  width: 100%;
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto auto;
-  align-content: center;
-  row-gap: 4px;
-  padding: 9px 18px 9px 14px;
+.peek-conf-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  opacity: 0.85;
 }
 
-.peek-single-answer {
+/* Single-answer expanded layout */
+
+.peek-single-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.peek-single-headrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
+}
+
+.peek-single-text {
+  flex: 1;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.96);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.peek-single-text.is-short {
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 1.05;
-}
-
-.peek-single-reason {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.52);
+  letter-spacing: 0.5px;
   line-height: 1.1;
 }
 
-.peek-list {
-  width: 100%;
-  max-height: 140px;
-  overflow-y: auto;
-  padding: 9px 15px;
-}
-
-.peek-list-row {
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 26px;
-  color: rgba(255, 255, 255, 0.92);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.peek-long-answer {
-  width: 100%;
-  max-height: 72px;
-  padding: 12px 15px;
-  font-size: 12px;
+.peek-single-text.is-long {
+  font-size: 12.5px;
+  font-weight: 500;
   line-height: 1.42;
-  color: rgba(255, 255, 255, 0.92);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+}
+
+/* Multi-question expanded layout */
+
+.peek-row {
+  padding: 8px 0;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.peek-row.is-last {
+  border-bottom: 0;
+}
+
+.peek-row-headrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.peek-row-q {
+  flex: 0 0 auto;
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.36);
+  font-variant-numeric: tabular-nums;
+  min-width: 14px;
+  text-align: left;
+}
+
+.peek-row-answer {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: rgba(255, 255, 255, 0.96);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.2;
+}
+
+/* Reason text — shared between single + multi rows */
+
+.peek-reason {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.52);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.peek-reason-indent {
+  padding-left: 24px;
 }
 
 /* ── Onboarding animation (6s cycle) ─────────────────────────────────────── */

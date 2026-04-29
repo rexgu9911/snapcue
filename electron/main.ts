@@ -1,11 +1,10 @@
 import { app, BrowserWindow, globalShortcut } from 'electron'
-import { is } from '@electron-toolkit/utils'
-import { autoUpdater } from 'electron-updater'
 import { initTray, showDropdown } from './tray'
 import { initIpc, getSettings, refreshCreditsMeta } from './ipc'
 import { createOnboardingWindow } from './onboarding'
 import { closeSigninWindow } from './signin'
 import { setStoredSession } from './auth'
+import { initUpdater, startBackgroundCheck } from './updates'
 import { IPC } from '../shared/types'
 
 // Register custom protocol handler for auth deep links.
@@ -101,6 +100,7 @@ app.whenReady().then(async () => {
   const settings = getSettings()
   await initTray(settings.trayIcon)
   await initIpc()
+  initUpdater()
 
   // Show onboarding on first launch
   if (!settings.hasOnboarded) {
@@ -116,18 +116,7 @@ app.whenReady().then(async () => {
     handleDeepLink(url)
   }
 
-  // Auto-update — production only. Defer 5s so the app finishes initializing
-  // before we hit the network. checkForUpdatesAndNotify downloads new versions
-  // in the background and shows a native notification when ready; the user
-  // installs on next quit/relaunch. Errors are logged but never surfaced —
-  // a transient network blip shouldn't pop a dialog at users.
-  if (!is.dev) {
-    setTimeout(() => {
-      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-        console.warn('[SnapCue] Update check failed:', err?.message ?? err)
-      })
-    }, 5000)
-  }
+  startBackgroundCheck()
 })
 
 app.on('will-quit', () => {

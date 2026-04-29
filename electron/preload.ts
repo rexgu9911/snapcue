@@ -12,6 +12,7 @@ import {
   type SignInResult,
   type CreditsMeta,
   type OpenBillingPortalResult,
+  type UpdateStatus,
 } from '../shared/types'
 
 contextBridge.exposeInMainWorld('snapcue', {
@@ -45,6 +46,7 @@ contextBridge.exposeInMainWorld('snapcue', {
     ipcRenderer.send(IPC.ANSWER_BUBBLE_SET_EXPANDED, expanded),
   moveAnswerBubbleBy: (delta: AnswerBubbleMovePayload) =>
     ipcRenderer.send(IPC.ANSWER_BUBBLE_MOVE_BY, delta),
+  saveAnswerBubbleDraggedPosition: () => ipcRenderer.send(IPC.ANSWER_BUBBLE_SAVE_DRAGGED_POSITION),
   setAnswerBubbleLayout: (layout: AnswerBubbleLayoutPayload) =>
     ipcRenderer.send(IPC.ANSWER_BUBBLE_SET_LAYOUT, layout),
   onAnswerBubbleShow: (cb: (payload: AnswerBubblePayload) => void) => {
@@ -79,6 +81,17 @@ contextBridge.exposeInMainWorld('snapcue', {
   // ── App lifecycle ───────────────────────────────────────────────────────
   quit: () => ipcRenderer.invoke(IPC.APP_QUIT),
   relaunch: () => ipcRenderer.invoke(IPC.APP_RELAUNCH),
+  getAppVersion: () => ipcRenderer.invoke(IPC.APP_GET_VERSION) as Promise<string>,
+
+  // ── Updates ─────────────────────────────────────────────────────────────
+  getUpdateStatus: () => ipcRenderer.invoke(IPC.UPDATE_GET_STATUS) as Promise<UpdateStatus>,
+  checkForUpdates: () => ipcRenderer.invoke(IPC.UPDATE_CHECK) as Promise<void>,
+  quitAndInstallUpdate: () => ipcRenderer.invoke(IPC.UPDATE_QUIT_AND_INSTALL) as Promise<void>,
+  onUpdateStatus: (cb: (status: UpdateStatus) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, status: UpdateStatus) => cb(status)
+    ipcRenderer.on(IPC.UPDATE_STATUS, listener)
+    return () => ipcRenderer.removeListener(IPC.UPDATE_STATUS, listener)
+  },
 
   // ── Onboarding ──────────────────────────────────────────────────────────
   completeOnboarding: () => ipcRenderer.invoke(IPC.ONBOARDING_COMPLETE),

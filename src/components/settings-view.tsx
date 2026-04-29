@@ -70,10 +70,13 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
   const [answerPeek, setAnswerPeek] = useState<AppSettings['answerPeek']>({
     enabled: true,
     autoCopy: false,
+    savedPosition: null,
   })
   const [recording, setRecording] = useState<RecordingField>(null)
   const [conflict, setConflict] = useState<RecordingField>(null)
   const [saved, setSaved] = useState<RecordingField>(null)
+  const [appVersion, setAppVersion] = useState('')
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ phase: 'idle' })
 
   // Load settings on mount
   useEffect(() => {
@@ -82,6 +85,9 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
       setTrayIcon(s.trayIcon)
       setAnswerPeek(s.answerPeek)
     })
+    window.snapcue.getAppVersion().then(setAppVersion)
+    window.snapcue.getUpdateStatus().then(setUpdateStatus)
+    return window.snapcue.onUpdateStatus(setUpdateStatus)
   }, [])
 
   // Shortcut recording listener
@@ -147,192 +153,216 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
           paddingBottom: '10px',
         }}
       >
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="flex items-center self-start"
-        style={{ padding: '6px 10px 4px', gap: '3px' }}
-        onMouseEnter={(e) => {
-          e.currentTarget.querySelectorAll('svg, span').forEach((el) => {
-            ;(el as HTMLElement).style.color = 'rgba(255,255,255,0.7)'
-          })
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.querySelectorAll('svg, span').forEach((el) => {
-            ;(el as HTMLElement).style.color = 'rgba(255,255,255,0.4)'
-          })
-        }}
-      >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 12 12"
-          fill="none"
-          style={{ color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
-        >
-          <path
-            d="M7.5 2L3.5 6L7.5 10"
-            stroke="currentColor"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span
-          style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
-        >
-          back
-        </span>
-      </button>
-
-      {/* Account section */}
-      <AccountSection user={user} meta={meta} />
-
-      {/* Shortcuts section */}
-      <div style={{ padding: '4px 10px 4px' }}>
-        <div
-          className="flex items-baseline justify-between"
-          style={{
-            marginTop: '8px',
-            marginBottom: '6px',
+        {/* Back button */}
+        <button
+          onClick={onBack}
+          className="flex items-center self-start"
+          style={{ padding: '6px 10px 4px', gap: '3px' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.querySelectorAll('svg, span').forEach((el) => {
+              ;(el as HTMLElement).style.color = 'rgba(255,255,255,0.7)'
+            })
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.querySelectorAll('svg, span').forEach((el) => {
+              ;(el as HTMLElement).style.color = 'rgba(255,255,255,0.4)'
+            })
           }}
         >
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 12 12"
+            fill="none"
+            style={{ color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
+          >
+            <path
+              d="M7.5 2L3.5 6L7.5 10"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           <span
+            style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
+          >
+            back
+          </span>
+        </button>
+
+        {/* Account section */}
+        <AccountSection user={user} meta={meta} />
+
+        {/* Shortcuts section */}
+        <div style={{ padding: '4px 10px 4px' }}>
+          <div
+            className="flex items-baseline justify-between"
+            style={{
+              marginTop: '8px',
+              marginBottom: '6px',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '11px',
+                letterSpacing: '0.5px',
+                color: 'rgba(255,255,255,0.3)',
+                textTransform: 'uppercase' as const,
+              }}
+            >
+              Shortcuts
+            </span>
+            <span
+              style={{
+                fontSize: '9px',
+                color: 'rgba(255,255,255,0.25)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              click to change
+            </span>
+          </div>
+          <ShortcutRow
+            label="Silent capture"
+            value={hotkeys.silentCapture}
+            isRecording={recording === 'silentCapture'}
+            isConflict={conflict === 'silentCapture'}
+            isSaved={saved === 'silentCapture'}
+            onStartRecording={() => setRecording('silentCapture')}
+          />
+          <ShortcutRow
+            label="Area select"
+            value={hotkeys.regionSelect}
+            isRecording={recording === 'regionSelect'}
+            isConflict={conflict === 'regionSelect'}
+            isSaved={saved === 'regionSelect'}
+            onStartRecording={() => setRecording('regionSelect')}
+          />
+          <ShortcutRow
+            label="Toggle answers"
+            value={hotkeys.toggleDropdown}
+            isRecording={recording === 'toggleDropdown'}
+            isConflict={conflict === 'toggleDropdown'}
+            isSaved={saved === 'toggleDropdown'}
+            onStartRecording={() => setRecording('toggleDropdown')}
+          />
+        </div>
+
+        {/* Peek section */}
+        <div style={{ padding: '4px 10px 4px' }}>
+          <div
             style={{
               fontSize: '11px',
               letterSpacing: '0.5px',
               color: 'rgba(255,255,255,0.3)',
+              marginTop: '8px',
+              marginBottom: '6px',
               textTransform: 'uppercase' as const,
             }}
           >
-            Shortcuts
-          </span>
-          <span
+            Peek
+          </div>
+          <ToggleRow
+            label="Quick Peek"
+            checked={answerPeek.enabled}
+            onChange={(enabled) => handleAnswerPeekChange({ enabled })}
+          />
+          <ToggleRow
+            label="Auto-copy single answer"
+            checked={answerPeek.autoCopy}
+            onChange={(autoCopy) => handleAnswerPeekChange({ autoCopy })}
+          />
+        </div>
+
+        {/* Icon section */}
+        <div style={{ padding: '4px 10px 6px' }}>
+          <div
             style={{
-              fontSize: '9px',
-              color: 'rgba(255,255,255,0.25)',
-              letterSpacing: '0.02em',
+              fontSize: '11px',
+              letterSpacing: '0.5px',
+              color: 'rgba(255,255,255,0.3)',
+              marginTop: '8px',
+              marginBottom: '6px',
+              textTransform: 'uppercase' as const,
             }}
           >
-            click to change
+            Icon
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '4px',
+            }}
+          >
+            {ICON_OPTIONS.map((icon) => {
+              const isSelected = trayIcon === icon
+              return (
+                <button
+                  key={icon}
+                  onClick={() => handleIconChange(icon)}
+                  className="flex items-center justify-center"
+                  style={{
+                    height: '30px',
+                    borderRadius: '6px',
+                    background: isSelected ? 'rgba(255,255,255,0.10)' : 'transparent',
+                    border: isSelected
+                      ? '0.5px solid rgba(255,255,255,0.14)'
+                      : '0.5px solid transparent',
+                    transition: 'background 0.15s, border-color 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  <IconPreview icon={icon} />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Updates section */}
+        <div style={{ padding: '4px 10px 6px' }}>
+          <div
+            style={{
+              fontSize: '11px',
+              letterSpacing: '0.5px',
+              color: 'rgba(255,255,255,0.3)',
+              marginTop: '8px',
+              marginBottom: '6px',
+              textTransform: 'uppercase' as const,
+            }}
+          >
+            Updates
+          </div>
+          <UpdatesRow status={updateStatus} />
+        </div>
+
+        {/* Footer: version + quit */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: '4px 10px',
+            borderTop: '0.5px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+            {appVersion ? `v${appVersion}` : ''}
           </span>
+          <button
+            onClick={() => window.snapcue.quit()}
+            style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
+          >
+            Quit
+          </button>
         </div>
-        <ShortcutRow
-          label="Silent capture"
-          value={hotkeys.silentCapture}
-          isRecording={recording === 'silentCapture'}
-          isConflict={conflict === 'silentCapture'}
-          isSaved={saved === 'silentCapture'}
-          onStartRecording={() => setRecording('silentCapture')}
-        />
-        <ShortcutRow
-          label="Area select"
-          value={hotkeys.regionSelect}
-          isRecording={recording === 'regionSelect'}
-          isConflict={conflict === 'regionSelect'}
-          isSaved={saved === 'regionSelect'}
-          onStartRecording={() => setRecording('regionSelect')}
-        />
-        <ShortcutRow
-          label="Toggle answers"
-          value={hotkeys.toggleDropdown}
-          isRecording={recording === 'toggleDropdown'}
-          isConflict={conflict === 'toggleDropdown'}
-          isSaved={saved === 'toggleDropdown'}
-          onStartRecording={() => setRecording('toggleDropdown')}
-        />
-      </div>
-
-      {/* Peek section */}
-      <div style={{ padding: '4px 10px 4px' }}>
-        <div
-          style={{
-            fontSize: '11px',
-            letterSpacing: '0.5px',
-            color: 'rgba(255,255,255,0.3)',
-            marginTop: '8px',
-            marginBottom: '6px',
-            textTransform: 'uppercase' as const,
-          }}
-        >
-          Peek
-        </div>
-        <ToggleRow
-          label="Quick Peek"
-          checked={answerPeek.enabled}
-          onChange={(enabled) => handleAnswerPeekChange({ enabled })}
-        />
-      </div>
-
-      {/* Icon section */}
-      <div style={{ padding: '4px 10px 6px' }}>
-        <div
-          style={{
-            fontSize: '11px',
-            letterSpacing: '0.5px',
-            color: 'rgba(255,255,255,0.3)',
-            marginTop: '8px',
-            marginBottom: '6px',
-            textTransform: 'uppercase' as const,
-          }}
-        >
-          Icon
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '4px',
-          }}
-        >
-          {ICON_OPTIONS.map((icon) => {
-            const isSelected = trayIcon === icon
-            return (
-              <button
-                key={icon}
-                onClick={() => handleIconChange(icon)}
-                className="flex items-center justify-center"
-                style={{
-                  height: '30px',
-                  borderRadius: '6px',
-                  background: isSelected ? 'rgba(255,255,255,0.10)' : 'transparent',
-                  border: isSelected
-                    ? '0.5px solid rgba(255,255,255,0.14)'
-                    : '0.5px solid transparent',
-                  transition: 'background 0.15s, border-color 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = 'transparent'
-                }}
-              >
-                <IconPreview icon={icon} />
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Footer: version + quit */}
-      <div
-        className="flex items-center justify-between"
-        style={{
-          padding: '4px 10px',
-          borderTop: '0.5px solid rgba(255,255,255,0.06)',
-        }}
-      >
-        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>v0.1.4</span>
-        <button
-          onClick={() => window.snapcue.quit()}
-          style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
-        >
-          Quit
-        </button>
-      </div>
       </div>
       <div
         aria-hidden="true"
@@ -343,8 +373,7 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
           bottom: 0,
           height: '22px',
           pointerEvents: 'none',
-          background:
-            'linear-gradient(to bottom, rgba(30,30,30,0), rgba(30,30,30,0.92) 82%)',
+          background: 'linear-gradient(to bottom, rgba(30,30,30,0), rgba(30,30,30,0.92) 82%)',
         }}
       />
     </div>
@@ -640,6 +669,119 @@ function ShortcutRow({
         <p style={{ fontSize: '10px', color: 'rgba(239,68,68,0.8)', padding: '1px 0 2px' }}>
           already in use
         </p>
+      )}
+    </div>
+  )
+}
+
+function UpdatesRow({ status }: { status: UpdateStatus }) {
+  const [busy, setBusy] = useState(false)
+
+  async function handleCheck() {
+    setBusy(true)
+    try {
+      await window.snapcue.checkForUpdates()
+    } finally {
+      // Status events drive the UI from here; the local busy guard just
+      // prevents double-clicks during the in-flight invoke.
+      setBusy(false)
+    }
+  }
+
+  function handleRestart() {
+    void window.snapcue.quitAndInstallUpdate()
+  }
+
+  // 5 visible states. 'downloading' renders the same as 'checking' — the
+  // distinction is only meaningful in logs.
+  switch (status.phase) {
+    case 'checking':
+    case 'downloading':
+      return (
+        <UpdatesRowFrame
+          label={status.phase === 'checking' ? 'Checking…' : `Downloading v${status.version}…`}
+          dim
+        />
+      )
+    case 'up-to-date':
+      return (
+        <UpdatesRowFrame
+          label="You're on the latest"
+          action={{ kind: 'subtle', label: 'Check again', onClick: handleCheck, disabled: busy }}
+        />
+      )
+    case 'downloaded':
+      return (
+        <UpdatesRowFrame
+          label={`v${status.version} ready`}
+          action={{ kind: 'neutral', label: 'Restart to install', onClick: handleRestart }}
+        />
+      )
+    case 'error':
+      return (
+        <UpdatesRowFrame
+          label="Couldn't check"
+          action={{ kind: 'subtle', label: 'Try again', onClick: handleCheck, disabled: busy }}
+        />
+      )
+    case 'idle':
+    default:
+      return (
+        <UpdatesRowFrame
+          label="Check for updates"
+          action={{ kind: 'neutral', label: 'Check', onClick: handleCheck, disabled: busy }}
+        />
+      )
+  }
+}
+
+function UpdatesRowFrame({
+  label,
+  action,
+  dim,
+}: {
+  label: string
+  dim?: boolean
+  action?: { kind: 'neutral' | 'subtle'; label: string; onClick: () => void; disabled?: boolean }
+}) {
+  return (
+    <div className="flex items-center justify-between" style={{ padding: '4px 0' }}>
+      <span
+        style={{
+          fontSize: '11px',
+          color: dim ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.6)',
+        }}
+      >
+        {label}
+      </span>
+      {action && (
+        <button
+          onClick={action.onClick}
+          disabled={action.disabled}
+          className="transition-colors"
+          style={{
+            fontSize: '11px',
+            fontWeight: 500,
+            color: action.kind === 'neutral' ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.5)',
+            background:
+              action.kind === 'neutral' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.06)',
+            padding: '2px 10px',
+            borderRadius: '4px',
+            opacity: action.disabled ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (action.disabled) return
+            e.currentTarget.style.background =
+              action.kind === 'neutral' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.10)'
+          }}
+          onMouseLeave={(e) => {
+            if (action.disabled) return
+            e.currentTarget.style.background =
+              action.kind === 'neutral' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.06)'
+          }}
+        >
+          {action.label}
+        </button>
       )}
     </div>
   )

@@ -14,6 +14,7 @@ type AuthUser = import('../shared/types').AuthUser
 type SignInResult = import('../shared/types').SignInResult
 type CreditsMeta = import('../shared/types').CreditsMeta
 type OpenBillingPortalResult = import('../shared/types').OpenBillingPortalResult
+type UpdateStatus = import('../shared/types').UpdateStatus
 
 interface SnapCueAPI {
   platform: string
@@ -31,6 +32,7 @@ interface SnapCueAPI {
   closeAnswerBubble: () => void
   setAnswerBubbleExpanded: (expanded: boolean) => void
   moveAnswerBubbleBy: (delta: AnswerBubbleMovePayload) => void
+  saveAnswerBubbleDraggedPosition: () => void
   setAnswerBubbleLayout: (layout: AnswerBubbleLayoutPayload) => void
   onAnswerBubbleShow: (cb: (payload: AnswerBubblePayload) => void) => () => void
 
@@ -51,6 +53,13 @@ interface SnapCueAPI {
   // App lifecycle
   quit: () => Promise<void>
   relaunch: () => Promise<void>
+  getAppVersion: () => Promise<string>
+
+  // Updates
+  getUpdateStatus: () => Promise<UpdateStatus>
+  checkForUpdates: () => Promise<void>
+  quitAndInstallUpdate: () => Promise<void>
+  onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void
 
   // Onboarding
   completeOnboarding: () => Promise<void>

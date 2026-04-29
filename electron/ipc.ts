@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   desktopCapturer,
   ipcMain,
   shell,
@@ -50,7 +51,11 @@ import {
   showAnswerBubbleResult,
 } from './answer-bubble'
 
-const API_TIMEOUT_MS = 30_000
+// 30s wasn't enough headroom for 3+ question screenshots on slow GPT-5
+// mini reasoning days — users hit the timeout before the model finished.
+// 45s is a balance: still bounded enough to recover from genuine network
+// hangs, but tolerant of the legitimate variance in model latency.
+const API_TIMEOUT_MS = 45_000
 
 // ── Backend response shapes ─────────────────────────────────────────────────
 
@@ -375,7 +380,7 @@ async function analyzeAndDeliver(base64: string, anchor: Point): Promise<void> {
   // falls through to the catch and surfaces as an unknown error.
   try {
     if (settings.answerPeek.enabled) {
-      showAnswerBubbleLoading(anchor)
+      showAnswerBubbleLoading(anchor, settings.answerPeek.savedPosition)
     } else {
       hideAnswerBubble()
     }
@@ -415,6 +420,14 @@ async function analyzeAndDeliver(base64: string, anchor: Point): Promise<void> {
     sendToDropdown(IPC.CAPTURE_RESULT, result.answers)
     if (settings.answerPeek.enabled) {
       showAnswerBubbleResult(result.answers)
+    }
+
+    // Auto-copy the answer when exactly one question was detected. Multi-
+    // question screenshots are ambiguous (which one to copy?) — leave those
+    // to the manual click-to-copy in the answer panel.
+    if (settings.answerPeek.autoCopy && result.answers.length === 1) {
+      const answer = result.answers[0].answer.trim()
+      if (answer) clipboard.writeText(answer)
     }
 
     if (!settings.hasFirstCapture) {
@@ -487,7 +500,13 @@ async function handleRetry(): Promise<void> {
 // ── Register all IPC handlers ────────────────────────────────────────────────
 
 export async function initIpc(): Promise<void> {
-  registerAnswerBubbleIpc()
+  registerAnswerBubbleIpc({
+    onSavePosition: (pos) => {
+      applySettingsChange({
+        answerPeek: { ...settings.answerPeek, savedPosition: pos },
+      })
+    },
+  })
 
   // Check permission on startup
   screenPermissionGranted = checkScreenRecordingPermission()
