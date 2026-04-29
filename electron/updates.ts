@@ -1,7 +1,15 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
+import log from 'electron-log/main'
 import { IPC, type UpdateStatus } from '../shared/types'
+
+// Persist update events to ~/Library/Logs/SnapCue/main.log so silent failures
+// (v0.1.4 → v0.1.5 fired no notification, no error trail) leave evidence we
+// can cat the next time something goes wrong.
+log.transports.file.level = 'info'
+log.transports.file.maxSize = 5 * 1024 * 1024
+autoUpdater.logger = log
 
 // In-process status mirror so any window opening Settings later sees the
 // current update phase — including a downloaded update waiting to install
@@ -66,8 +74,12 @@ export function startBackgroundCheck(): void {
   // checkForUpdatesAndNotify still produces the native macOS notification on
   // download, complementing our in-app Settings surface.
   setTimeout(() => {
+    log.info('[updates] starting background check')
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.warn('[SnapCue] Update check failed:', err?.message ?? err)
+      // electron-updater also routes errors through the 'error' event we
+      // wired above, but log here too so the failure is captured even if
+      // the throw races the event loop.
+      log.error('[updates] background check failed:', err?.message ?? err)
     })
   }, 5000)
 }

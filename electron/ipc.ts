@@ -4,12 +4,14 @@ import {
   clipboard,
   desktopCapturer,
   ipcMain,
+  Notification,
   shell,
   net,
   globalShortcut,
   screen,
   type Point,
 } from 'electron'
+import log from 'electron-log/main'
 import {
   IPC,
   type CaptureMode,
@@ -579,6 +581,24 @@ export async function initIpc(): Promise<void> {
     // small floating window pointing up at the tray icon; the in-flight
     // tray pulse triggered from the renderer reinforces it.
     showMenuBarCoachmark()
+    // Trigger macOS Notification permission prompt while onboarding context
+    // is still fresh. Without this, future autoUpdater 'update-downloaded'
+    // notifications get silently dropped — the v0.1.4 → v0.1.5 upgrade
+    // shipped nothing visible because the user had never granted permission.
+    // silent: true so the prompt feels like part of onboarding, not noise.
+    try {
+      const ping = new Notification({
+        title: 'SnapCue',
+        body: 'Notifications enabled — you’ll see updates here.',
+        silent: true,
+      })
+      ping.show()
+      // Auto-dismiss after a short beat; the goal is the permission prompt,
+      // not the message itself.
+      setTimeout(() => ping.close(), 2500)
+    } catch (err) {
+      log.warn('[onboarding] notification ping failed:', err)
+    }
   })
 
   ipcMain.handle(IPC.AUTH_GET_CURRENT_USER, async (): Promise<AuthUser | null> => {
