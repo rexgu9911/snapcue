@@ -106,7 +106,7 @@ export function AppHereContent() {
       {/* Body copy */}
       <div
         className="flex flex-col items-center text-center"
-        style={{ gap: '8px', maxWidth: '380px', marginTop: '24px' }}
+        style={{ gap: '8px', maxWidth: '420px', marginTop: '24px' }}
       >
         <p
           style={{
@@ -125,8 +125,9 @@ export function AppHereContent() {
             lineHeight: 1.6,
           }}
         >
-          Open any question, press <KeyChip>{'⌃'}</KeyChip> <KeyChip>{'⌥'}</KeyChip>{' '}
-          <KeyChip>A</KeyChip> to drag-select, and the answer appears in the dropdown.
+          Press <KeyChip>{'⌃'}</KeyChip> <KeyChip>{'⌥'}</KeyChip> <KeyChip>A</KeyChip> to
+          drag-select any question. The answer pops up next to your cursor — and in the dropdown
+          above.
         </p>
       </div>
     </div>

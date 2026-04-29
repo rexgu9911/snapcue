@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 interface AnswerPanelProps {
   answers: AnswerItem[]
-  regionShortcut: string
 }
 
 const DOT_COLOR: Record<string, string> = {
@@ -11,7 +10,7 @@ const DOT_COLOR: Record<string, string> = {
   low: 'bg-red-400',
 }
 
-export function AnswerPanel({ answers, regionShortcut }: AnswerPanelProps) {
+export function AnswerPanel({ answers }: AnswerPanelProps) {
   const [expandedQ, setExpandedQ] = useState<number | null>(null)
 
   if (answers.length === 0) {
@@ -21,15 +20,15 @@ export function AnswerPanel({ answers, regionShortcut }: AnswerPanelProps) {
           no questions detected
         </p>
         <p
-          className="font-mono"
           style={{
             fontSize: '11px',
             lineHeight: 1.45,
             color: 'rgba(255,255,255,0.35)',
             marginTop: '4px',
+            textAlign: 'center',
           }}
         >
-          try {regionShortcut} to select the question area
+          Try a tighter selection around just the question.
         </p>
       </div>
     )
@@ -52,7 +51,14 @@ export function AnswerPanel({ answers, regionShortcut }: AnswerPanelProps) {
 /* Clipboard icon (mini SVG, 9px square) */
 function CopyIcon() {
   return (
-    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      width="9"
+      height="9"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <rect x="5" y="5" width="9" height="9" rx="1.5" />
       <path d="M5 11H3.5A1.5 1.5 0 0 1 2 9.5V3.5A1.5 1.5 0 0 1 3.5 2h6A1.5 1.5 0 0 1 11 3.5V5" />
     </svg>
@@ -162,7 +168,10 @@ function AnswerRow({
         className="overflow-hidden transition-[max-height] duration-150 ease-in-out"
         style={{ maxHeight: expanded ? `${expandHeight}px` : '0px' }}
       >
-        <div ref={expandRef} style={{ paddingLeft: '34px', paddingTop: '2px', paddingBottom: '4px' }}>
+        <div
+          ref={expandRef}
+          style={{ paddingLeft: '34px', paddingTop: '2px', paddingBottom: '4px' }}
+        >
           {/* If answer was truncated in collapsed state, show full answer text */}
           {wasTruncated && (
             <div style={{ position: 'relative' }}>

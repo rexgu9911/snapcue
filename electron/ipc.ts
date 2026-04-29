@@ -281,7 +281,7 @@ function messageForErrorType(type: ErrorType): string {
     case 'daily_limit':
       return 'Daily limit reached.'
     case 'no_questions':
-      return 'No quiz questions detected in the screenshot.'
+      return 'No questions detected in the screenshot.'
     default:
       return 'Something went wrong. Try again.'
   }

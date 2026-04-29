@@ -29,7 +29,7 @@ export function LoadingView() {
       </div>
 
       <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-        {slow ? 'taking longer than usual...' : 'analyzing'}
+        {slow ? 'still working...' : 'analyzing'}
       </span>
     </div>
   )

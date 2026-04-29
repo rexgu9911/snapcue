@@ -187,7 +187,7 @@ export function SettingsView({ onBack, user, meta }: SettingsViewProps) {
           <span
             style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
           >
-            back
+            Back
           </span>
         </button>
 
@@ -707,7 +707,7 @@ function UpdatesRow({ status }: { status: UpdateStatus }) {
       return (
         <UpdatesRowFrame
           label="You're on the latest"
-          action={{ kind: 'subtle', label: 'Check again', onClick: handleCheck, disabled: busy }}
+          action={{ kind: 'subtle', label: 'Check', onClick: handleCheck, disabled: busy }}
         />
       )
     case 'downloaded':

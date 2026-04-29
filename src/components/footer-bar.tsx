@@ -132,14 +132,10 @@ function CreditsLabel({ meta }: { meta: CreditsMeta | null }) {
   }
 
   const n = Math.max(0, meta.credits_remaining)
-  const color =
-    n === 0
-      ? 'rgba(239,68,68,0.7)'
-      : n <= 2
-        ? 'rgba(251,146,60,0.7)'
-        : 'rgba(255,255,255,0.25)'
 
   return (
-    <span style={{ fontSize: '11px', fontFamily: 'monospace', color }}>{n} left</span>
+    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'rgba(255,255,255,0.25)' }}>
+      {n} credit{n === 1 ? '' : 's'}
+    </span>
   )
 }
