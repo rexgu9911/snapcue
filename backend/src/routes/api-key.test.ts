@@ -65,6 +65,19 @@ describe('SNAPCUE_API_KEY hook', () => {
     expect(res.statusCode).not.toBe(401)
   })
 
+  it('bypasses key check on POST /webhooks/stripe/ (trailing slash)', async () => {
+    // Caught a 401 in prod because the dashboard URL had a trailing slash that
+    // the strict `===` rejected. Lock in the normalization so it doesn't regress.
+    const app = await buildApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/stripe/',
+      headers: { 'content-type': 'application/json' },
+      payload: '{}',
+    })
+    expect(res.statusCode).not.toBe(401)
+  })
+
   it('bypasses key check on POST /checkout (JWT is the gate)', async () => {
     const app = await buildApp()
     const res = await app.inject({

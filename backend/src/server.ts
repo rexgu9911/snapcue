@@ -44,10 +44,19 @@ export async function buildApp() {
       //     session is bound to the authenticated user (metadata.user_id),
       //     so an attacker with someone else's JWT can only generate a
       //     checkout that ultimately charges *themself* — self-policing.
-      if (request.method === 'GET' && request.url === '/health') return
-      if (request.method === 'POST' && request.url === '/webhooks/stripe') return
-      if (request.method === 'POST' && request.url === '/checkout') return
+      //
+      // Strip query string + trailing slash so a Stripe webhook URL configured
+      // with either variation still matches. Caught a 401 in prod once because
+      // the dashboard URL had a trailing slash that the strict `===` rejected.
+      const path = request.url.split('?')[0]?.replace(/\/$/, '') ?? ''
+      if (request.method === 'GET' && path === '/health') return
+      if (request.method === 'POST' && path === '/webhooks/stripe') return
+      if (request.method === 'POST' && path === '/checkout') return
       if (request.headers['x-api-key'] !== snapcueApiKey) {
+        request.log.warn(
+          { method: request.method, url: request.url, path },
+          'x-api-key check failed — request will be rejected with 401',
+        )
         return reply.status(401).send({ error: 'unauthorized' })
       }
     })
